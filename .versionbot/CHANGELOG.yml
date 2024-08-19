@@ -1,0 +1,66 @@
+- commits:
+    - subject: "linux-compulab: sign kernel initramfs bundle"
+      hash: ef6a53d48f2a4510703a55503b97cf2473351400
+      body: |
+        Use the hab class to sign the kernel initramfs bundle.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+  version: 0.0.2
+  title: ""
+  date: 2024-08-19T09:30:30.891Z
+- version: 0.0.2
+  date: 2024-08-19T09:17:16Z
+  commits:
+    - hash: c66e7d873f30e53b81f27705c031265da1cb87cd
+      author: Alex Gonzalez
+      footers:
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      subject: Add layer configuration file
+      body: ""
+    - hash: b8db73776beb584c7dc1404a69e809edf6bc9543
+      author: Alex Gonzalez
+      footers:
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      subject: "layers: hab: add HAB class"
+      body: |-
+        This class encapsulated common functionality for the signing and
+        authentication of artifacts using the HAB framework on the i.MX
+        SoC.
+    - hash: a8c5b2e2938773b3e46cee2b6a423ee13b96f8d4
+      author: Alex Gonzalez
+      footers:
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      subject: "u-boot: sign artifacts"
+      body: |-
+        * Configure u-boot with HAB and secure boot support
+        * Extend the FDT load address in u-boot's environment to allow the
+        loading of larger kernel initramfs bundles
+        * Allow to specify the IVT offset for HAB authentication of artifacts
+        in the u-boot environment. This allows to authenticate Linux initramfs
+        bundles, and in future device tree files, instead of just plain kernel
+        images.
+    - hash: 596019fc1c1c79df934e631ec33db8638871a898
+      author: Alex Gonzalez
+      footers:
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      subject: "imx-boot: sign FIT artifacts"
+      body: Use the HAB class to sign the u-boot FIT artifact.
+    - hash: 0a63763f74a9ebbc55f43a3c9fb5a296fb2d3a4d
+      author: Alex Gonzalez
+      footers:
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      subject: "images: balena-image-initramfs: extend size"
+      body: |-
+        The addition of secure boot support in balenaOS extends the size
+        of the initramfs image. This commit extends the allowed max size.
+    - hash: c6e32310e5b308623d18fbc26a6acbedcb095c2b
+      author: Alex Gonzalez
+      footers:
+        change-type: patch
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      subject: "linux-compulab: sign kernel initramfs bundle"
+      body: Use the hab class to sign the kernel initramfs bundle.
