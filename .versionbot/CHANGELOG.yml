@@ -1,0 +1,14 @@
+- commits:
+    - subject: "linux-compulab: sign kernel initramfs bundle"
+      hash: c6e32310e5b308623d18fbc26a6acbedcb095c2b
+      body: |
+        Use the hab class to sign the kernel initramfs bundle.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+  version: 0.0.2
+  title: ""
+  date: 2024-08-19T09:17:59.913Z
