@@ -19,6 +19,20 @@ sysroot_stage_all:append:class-target () {
     install "${STAGING_DIR_HOST}/hab_auth" "${SYSROOT_DESTDIR}/sysroot-only/"
 }
 
+BALENA_CONFIGS:append = " caam"
+BALENA_CONFIGS[caam] = " \
+    CONFIG_DAX=y \
+    CONFIG_BLK_DEV_DM=y \
+    CONFIG_BLK_DEV_MD=y \
+    CONFIG_MD=y \
+    CONFIG_ENCRYPTED_KEYS=y \
+    CONFIG_DM_CRYPT=y \
+    CONFIG_CRYPTO_USER_API=y \
+    CONFIG_CRYPTO_USER_API_HASH=y \
+    CONFIG_CRYPTO_USER_API_AEAD=y \
+    CONFIG_CRYPTO_USER_API_SKCIPHER=y \
+"
+
 # The kernel is not an EFI artifact
 deltask do_sign_efi
 deltask do_sign_gpg
