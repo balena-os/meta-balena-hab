@@ -1,5 +1,11 @@
 inherit hab
 
+FILESEXTRAPATHS:prepend := "${THISDIR}/${PN}:"
+
+SRC_URI:append = " \
+    file://crypto-engine-fix-crypto_queue-backlog-handling.patch \
+"
+
 # kernel load address in memory i.e u-boot loadaddr
 HAB_LOAD_ADDR ?= "0x40480000"
 
