@@ -2,7 +2,7 @@ inherit hab
 
 python __anonymous () {
     sign_artifact_names = []
-    boot_config_machine = d.getVar('BOOT_CONFIG_MACHINE', True)
+    boot_config_machine = "-".join([d.getVar('BOOT_NAME', True), d.getVar('MACHINE', True), d.getVar('UBOOT_CONFIG', True)]) + ".bin"
     imxboot_targets = d.getVar('IMXBOOT_TARGETS', True)
     for target in imxboot_targets.split():
         sign_artifact_names.append(f"{boot_config_machine}-{target}")
