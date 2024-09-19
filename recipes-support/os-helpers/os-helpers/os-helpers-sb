@@ -26,6 +26,7 @@ BALENA_NONENCRYPTED_BOOT_PARTITION_FILES="\
 	sb-iotgimx8.dtb:/sb-iotgimx8.dtb \
 	sb-iotgimx8-can.dtb:/sb-iotgimx8-can.dtb \
 	sb-iotgimx8-ied.dtb:/sb-iotgimx8-ied.dtb \
+	Image.gz:/Image.gz \
 "
 
 is_secured() {
