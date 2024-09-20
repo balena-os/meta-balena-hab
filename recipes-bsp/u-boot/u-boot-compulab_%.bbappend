@@ -28,6 +28,7 @@ SRC_URI:append:mx8m-generic-bsp = " \
     file://mach-imx-hab-allow-to-specify-custom-IVT-offset-from.patch \
     file://iot-gate-imx8-extend-the-load-address-for-FDT-files.patch \
     file://iot-gate-imx8-add-placeholder-for-IVT-offset-to-envi.patch \
+    file://iot-gate-imx8-modify-configuration-to-fetch-kernel-b.patch \
     file://iot-gate-imx8-add-placeholder-for-DTB-IVT-offset-to-.patch \
     file://image-fdt-introduce-HAB-authentication-for-device-tr.patch \
 "
