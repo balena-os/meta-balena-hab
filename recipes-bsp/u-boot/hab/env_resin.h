@@ -131,7 +131,7 @@
        \
        "resin_set_dev_index=" \
                "run resin_scan_devs; " \
-               "if test -n ${resin_flasher_dev_index}; then " \
+               "if test -n \"${resin_flasher_dev_index}\"; then " \
                        "echo Found resin flasher on ${resin_dev_type} ${resin_flasher_dev_index}; "\
                        "setenv bootparam_flasher flasher migrate; "\
                        "setenv resin_dev_index ${resin_flasher_dev_index}; "\
@@ -181,8 +181,15 @@
                "run resin_set_dev_index;" \
                "run resin_inject_env_file;" \
                "run resin_check_altroot;" \
-               "run resin_find_root_part_uuid;" \
-               "setenv resin_kernel_root root=UUID=${resin_root_part_uuid}\0"
+               "if test -z \"${resin_flasher_dev_index}\"; then " \
+                   "env set resin_root_str resin-rootA; " \
+                   "if test ${resin_root_part} = ${resin_rootb}; then "\
+                       "env set resin_root_str resin-rootB; " \
+                   "fi;" \
+                   "setenv resin_kernel_root root=LABEL=${resin_root_str}; " \
+               "else; "\
+                   "setenv resin_kernel_root root=LABEL=flash-rootA; " \
+               "fi;\0"
 
 #endif /* HEADER_ENV_BALENA_H */
 
