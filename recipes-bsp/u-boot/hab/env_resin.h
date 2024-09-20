@@ -181,8 +181,16 @@
                "run resin_set_dev_index;" \
                "run resin_inject_env_file;" \
                "run resin_check_altroot;" \
-               "run resin_find_root_part_uuid;" \
-               "setenv resin_kernel_root root=UUID=${resin_root_part_uuid}\0"
+               "if test -n ${resin_flasher_dev_index}; then " \
+                   "run resin_find_root_part_uuid;" \
+                   "setenv resin_kernel_root root=UUID=${resin_root_part_uuid}; " \
+               "else; "\
+                   "env set resin_root_str resin-rootA; " \
+                   "if test ${resin_root_part} = ${resin_rootb}; then "\
+                       "env set resin_root_str resin-rootB; " \
+                   "fi;" \
+                   "setenv resin_kernel_root root=LABEL=${resin_root_str}; " \
+               "fi;\0"
 
 #endif /* HEADER_ENV_BALENA_H */
 
