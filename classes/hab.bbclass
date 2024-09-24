@@ -41,7 +41,7 @@ cst() {
         if [ "x${SIGN_HAB_PKI_ID}" = "x" ]; then
             bbfatal "HAB PKI ID must be defined"
         else
-            SIGN_NXP_PKI_ID=${SIGN_HAB_PKI_ID}
+            SIGN_IMX_PKI_ID=${SIGN_HAB_PKI_ID}
         fi
     fi
 
@@ -49,11 +49,11 @@ cst() {
         if [ "x${SIGN_AHAB_PKI_ID}" = "x" ]; then
             bbfatal "AHAB PKI ID must be defined"
         else
-            SIGN_NXP_PKI_ID=${SIGN_AHAB_PKI_ID}
+            SIGN_IMX_PKI_ID=${SIGN_AHAB_PKI_ID}
         fi
     fi
 
-    if [ -z "${SIGN_NXP_PKI_ID}" ]; then
+    if [ -z "${SIGN_IMX_PKI_ID}" ]; then
         bbfatal "PKI ID must be defined"
     fi
 
@@ -62,8 +62,8 @@ cst() {
     _size=$(du -b "${_input_artifact}" | awk '{print $1}')
     # Timeout is 1 minute plus 1 minute per MB
     _timeout=$(expr 60 +  $_size / 1024 / 1024 \* 60)
-    echo "{\"pki_id\": \"${SIGN_NXP_PKI_ID}\", \"hab_type\": \"${SIGN_HAB_TYPE}\",\"payload\": \"$(base64 -w 0 ${_input_artifact})\", \"csf\": \"$(base64 -w 0 ${_csf_artifact})\" }" > "${REQUEST_FILE}"
-    if CURL_CA_BUNDLE="${STAGING_DIR_NATIVE}/etc/ssl/certs/ca-certificates.crt" curl --retry 5 --silent --show-error --max-time ${_timeout} "${SIGN_API}/nxp/cst" -X POST -H "Content-Type: application/json" -H "X-API-Key: ${SIGN_API_KEY}" -d "@${REQUEST_FILE}" --output "${RESPONSE_FILE}"; then
+    echo "{\"pki_id\": \"${SIGN_IMX_PKI_ID}\", \"hab_type\": \"${SIGN_HAB_TYPE}\",\"payload\": \"$(base64 -w 0 ${_input_artifact})\", \"csf\": \"$(base64 -w 0 ${_csf_artifact})\" }" > "${REQUEST_FILE}"
+    if CURL_CA_BUNDLE="${STAGING_DIR_NATIVE}/etc/ssl/certs/ca-certificates.crt" curl --retry 5 --silent --show-error --max-time ${_timeout} "${SIGN_API}/imx/cst" -X POST -H "Content-Type: application/json" -H "X-API-Key: ${SIGN_API_KEY}" -d "@${REQUEST_FILE}" --output "${RESPONSE_FILE}"; then
         jq -r ".csf_bin" < "${RESPONSE_FILE}" | base64 -d > "${_output_artifact}"
     else
         bbfatal "Failed to sign ${_input_artifact} with error $?"
