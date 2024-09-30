@@ -13,8 +13,6 @@ CONFIG_PAD_SIZE_D ?= "8192"
 # This is the IVT_SIZE macro in U-boot, 0x20
 IVT_SIZE_D = "32"
 
-KERNEL_SIGN_IVT_OFFSET ?= "0"
-
 cst() {
     _input_artifact="${1}"
     _csf_artifact="${2}"
@@ -129,7 +127,7 @@ do_hab_ivt() {
     objcopy -I binary -O binary --pad-to ${_padsize_d} --gap-fill=0x00 "${_signing_artifact}" "${_ivt_artifact}"
 
     _ivt_off=$(printf 0x%x ${_padsize})
-    echo "KERNEL_SIGN_IVT_OFFSET=${_ivt_off}" > "${STAGING_DIR_HOST}/hab_auth"
+    echo "$(basename "${_signing_artifact}")_IVT_OFFSET=${_ivt_off}" >> "${STAGING_DIR_HOST}/hab_auth"
     _load_addr_d=$(printf "%d" ${_load_addr})
     _ivt_ptr=$(printf 0x%x $(expr ${_load_addr_d} + ${_padsize_d}))
     _csf_ptr=$(printf 0x%x $(expr ${_load_addr_d} + ${_padsize_d} + ${IVT_SIZE_D} ))
@@ -203,6 +201,7 @@ do_sign_hab() {
     if [ -z "${_signing_artifact}" ]; then
         bbfatal "Artifact name to sign is required"
     fi
+    bbnote "Signing ${_signing_artifact}"
     if [ -z "${HAB_LOAD_ADDR}" ]; then
         bbfatal "Load address is required"
     fi
@@ -244,6 +243,7 @@ do_sign_ahab() {
 }
 
 do_sign() {
+    bbnote "Signing ${SIGNING_ARTIFACTS}"
     for SIGNING_ARTIFACT in ${SIGNING_ARTIFACTS}; do
         do_sign_${SIGN_HAB_TYPE} ${SIGNING_ARTIFACT}
     done
