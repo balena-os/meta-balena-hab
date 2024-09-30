@@ -6,11 +6,33 @@ SRC_URI:append = " \
     file://crypto-engine-fix-crypto_queue-backlog-handling.patch \
 "
 
-# kernel load address in memory i.e u-boot loadaddr
-HAB_LOAD_ADDR ?= "0x40480000"
+python do_sign_dtb() {
+    dtb_path = os.path.join(d.getVar('B', True), "arch", d.getVar('ARCH', True), "boot", "dts")
+    kernel_devicetrees = d.getVar('KERNEL_DEVICETREE', True)
+    signing_artifacts = ""
+    for dtb in kernel_devicetrees.split():
+        signing_artifacts = signing_artifacts + " " + os.path.join(dtb_path, dtb)
+    d.setVar('SIGNING_ARTIFACTS', signing_artifacts)
+    hab_auth_path = os.path.join(d.getVar('STAGING_DIR_HOST'), 'hab_auth')
+    if os.path.exists(hab_auth_path):
+        os.remove(hab_auth_path)
+    # Load address in memory
+    d.setVar('HAB_LOAD_ADDR', "0x48480000")
+    bb.build.exec_func('do_sign', d)
+}
 
-SIGNING_ARTIFACTS ?= "${SIGNING_ARTIFACTS_BASE}"
-addtask sign before do_populate_sysroot after do_bundle_initramfs
+python do_sign_kernel_bundle() {
+    d.setVar('SIGNING_ARTIFACTS', d.getVar('SIGNING_ARTIFACTS_BASE', True))
+    # Load address in memory
+    d.setVar('HAB_LOAD_ADDR', "0x40480000")
+    bb.build.exec_func('do_sign', d)
+}
+
+addtask sign_dtb before do_install after do_compile
+addtask sign_kernel_bundle before do_populate_sysroot after do_bundle_initramfs
+
+do_sign_dtb[network] = "1"
+do_sign_kernel_bundle[network] = "1"
 
 # Stage the kernel bundle IVT offset for u-boot to use in its environment
 sysroot_stage_all:append:class-target () {
