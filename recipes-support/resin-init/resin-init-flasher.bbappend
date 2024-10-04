@@ -22,7 +22,9 @@ do_install:append() {
 	fi
 	if [ "${SKIP_SECUREBOOT_SETUP}" != "0" ]; then
 		bbwarn "SKIP_SECUREBOOT_SETUP is set - do not use in production"
+		sed -i -e "s,@@BALENA_SKIP_SECUREBOOT_SETUP@@,true,g" ${D}${libexecdir}/balena-init-flasher-secureboot
 	fi
+	sed -i -e "s,@@BALENA_SKIP_SECUREBOOT_SETUP@@,false,g" ${D}${libexecdir}/balena-init-flasher-secureboot
 }
 
 RDEPENDS:${PN}:append = "${@oe.utils.conditional('SIGN_API','','',' os-helpers-sb gnupg',d)}"

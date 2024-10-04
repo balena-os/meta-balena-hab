@@ -21,7 +21,7 @@ if ! command -v split_bootpartition > /dev/null; then . /usr/libexec/os-helpers-
 BALENA_NONENC_BOOT_LABEL=@@BALENA_NONENC_BOOT_LABEL@@
 
 secureboot_setup() {
-    if [ "${BALENA_SKIP_SECUREBOOT_SETUP}" = "1" ]; then
+    if @@BALENA_SKIP_SECUREBOOT_SETUP@@; then
         warn "SKIPPING SECUREBOOT SETUP - DO NOT USE IN PRODUCTION"
         return 0
     fi
