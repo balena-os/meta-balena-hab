@@ -29,7 +29,7 @@ BALENA_NONENCRYPTED_BOOT_PARTITION_FILES="\
 "
 
 is_secured() {
-	if [ "${IS_SECURED_CHECK_SKIP}" = "1" ]; then
+	if @@IS_SECURED_CHECK_SKIP@@; then
 		warn "ASSUMING SECURED - DO NOT USE IN PRODUCTION"
 		return 0
 	fi
