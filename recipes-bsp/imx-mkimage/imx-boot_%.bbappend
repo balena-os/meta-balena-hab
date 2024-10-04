@@ -110,6 +110,11 @@ do_efuses() {
     xxd -e -g 4 -c 4 -u "${WORKDIR}/efuses.bin" | awk '{print "0x" $2}' | awk 'BEGIN {BANK=5; ADDR=0;} { BANK+=(ADDR==0); $0="fuse prog "BANK" "ADDR" "$0; ADDR+=1 ; ADDR%=4;}1' > ${WORKDIR}/lock.scr
 }
 
+do_deploy:append() {
+    install -m 0644 "${WORKDIR}/efuses.bin" "${DEPLOYDIR}/efuses.bin"
+    install -m 0644 ${WORKDIR}/lock.scr "${DEPLOYDIR}/lock.scr"
+}
+
 do_efuses[depends] += " \
     coreutils-native:do_populate_sysroot \
     curl-native:do_populate_sysroot \
