@@ -2,7 +2,7 @@ inherit hab
 
 python __anonymous () {
     sign_artifact_names = []
-    boot_config_machine = d.getVar('BOOT_CONFIG_MACHINE', True)
+    boot_config_machine = "-".join([d.getVar('BOOT_NAME', True), d.getVar('MACHINE', True), d.getVar('UBOOT_CONFIG', True)]) + ".bin"
     imxboot_targets = d.getVar('IMXBOOT_TARGETS', True)
     for target in imxboot_targets.split():
         sign_artifact_names.append(f"{boot_config_machine}-{target}")
@@ -77,7 +77,7 @@ do_efuses() {
         if [ "x${SIGN_HAB_PKI_ID}" = "x" ]; then
             bbfatal "HAB PKI ID must be defined"
         else
-            SIGN_NXP_PKI_ID=${SIGN_HAB_PKI_ID}
+            SIGN_IMX_PKI_ID=${SIGN_HAB_PKI_ID}
         fi
     fi
 
@@ -85,21 +85,21 @@ do_efuses() {
         if [ "x${SIGN_AHAB_PKI_ID}" = "x" ]; then
             bbfatal "AHAB PKI ID must be defined"
         else
-            SIGN_NXP_PKI_ID=${SIGN_AHAB_PKI_ID}
+            SIGN_IMX_PKI_ID=${SIGN_AHAB_PKI_ID}
         fi
     fi
 
-    if [ -z "${SIGN_NXP_PKI_ID}" ]; then
+    if [ -z "${SIGN_IMX_PKI_ID}" ]; then
         bbfatal "PKI ID must be defined"
     fi
 
     REQUEST_FILE=$(mktemp)
     RESPONSE_FILE=$(mktemp)
     _timeout=60
-    if CURL_CA_BUNDLE="${STAGING_DIR_NATIVE}/etc/ssl/certs/ca-certificates.crt" curl --retry 5 --silent --show-error --max-time ${_timeout} "${SIGN_API}/nxp/efuses/${SIGN_NXP_PKI_ID}" -X GET -H "Content-Type: application/json" -H "X-API-Key: ${SIGN_API_KEY}" --output "${RESPONSE_FILE}"; then
+    if CURL_CA_BUNDLE="${STAGING_DIR_NATIVE}/etc/ssl/certs/ca-certificates.crt" curl --retry 5 --silent --show-error --max-time ${_timeout} "${SIGN_API}/imx/efuses/${SIGN_IMX_PKI_ID}" -X GET -H "Content-Type: application/json" -H "X-API-Key: ${SIGN_API_KEY}" --output "${RESPONSE_FILE}"; then
         jq -r ".efuses" < "${RESPONSE_FILE}" | base64 -d > "${WORKDIR}/efuses.bin"
     else
-        bbfatal "Failed to fetch efuses for ${SIGN_NXP_PKI_ID} with error $?"
+        bbfatal "Failed to fetch efuses for ${SIGN_IMX_PKI_ID} with error $?"
     fi
     rm -f "${REQUEST_FILE}" "${RESPONSE_FILE}"
 
@@ -108,6 +108,11 @@ do_efuses() {
     fi
     # Generate efuses programming script
     xxd -e -g 4 -c 4 -u "${WORKDIR}/efuses.bin" | awk '{print "0x" $2}' | awk 'BEGIN {BANK=5; ADDR=0;} { BANK+=(ADDR==0); $0="fuse prog "BANK" "ADDR" "$0; ADDR+=1 ; ADDR%=4;}1' > ${WORKDIR}/lock.scr
+}
+
+do_deploy:append() {
+    install -m 0644 "${WORKDIR}/efuses.bin" "${DEPLOYDIR}/efuses.bin"
+    install -m 0644 ${WORKDIR}/lock.scr "${DEPLOYDIR}/lock.scr"
 }
 
 do_efuses[depends] += " \

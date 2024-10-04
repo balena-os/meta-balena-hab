@@ -1,0 +1,7 @@
+BALENA_BOOT_PARTITION_FILES += " \
+	efuses.bin:/efuses.bin \
+	${KERNEL_IMAGETYPE}-initramfs-${MACHINE}.bin:/${KERNEL_IMAGETYPE} \
+"
+
+IMAGE_ROOTFS_SIZE = "512000"
+BALENA_BOOT_SIZE = "102400"

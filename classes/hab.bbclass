@@ -13,8 +13,6 @@ CONFIG_PAD_SIZE_D ?= "8192"
 # This is the IVT_SIZE macro in U-boot, 0x20
 IVT_SIZE_D = "32"
 
-KERNEL_SIGN_IVT_OFFSET ?= "0"
-
 cst() {
     _input_artifact="${1}"
     _csf_artifact="${2}"
@@ -41,7 +39,7 @@ cst() {
         if [ "x${SIGN_HAB_PKI_ID}" = "x" ]; then
             bbfatal "HAB PKI ID must be defined"
         else
-            SIGN_NXP_PKI_ID=${SIGN_HAB_PKI_ID}
+            SIGN_IMX_PKI_ID=${SIGN_HAB_PKI_ID}
         fi
     fi
 
@@ -49,11 +47,11 @@ cst() {
         if [ "x${SIGN_AHAB_PKI_ID}" = "x" ]; then
             bbfatal "AHAB PKI ID must be defined"
         else
-            SIGN_NXP_PKI_ID=${SIGN_AHAB_PKI_ID}
+            SIGN_IMX_PKI_ID=${SIGN_AHAB_PKI_ID}
         fi
     fi
 
-    if [ -z "${SIGN_NXP_PKI_ID}" ]; then
+    if [ -z "${SIGN_IMX_PKI_ID}" ]; then
         bbfatal "PKI ID must be defined"
     fi
 
@@ -62,8 +60,8 @@ cst() {
     _size=$(du -b "${_input_artifact}" | awk '{print $1}')
     # Timeout is 1 minute plus 1 minute per MB
     _timeout=$(expr 60 +  $_size / 1024 / 1024 \* 60)
-    echo "{\"pki_id\": \"${SIGN_NXP_PKI_ID}\", \"hab_type\": \"${SIGN_HAB_TYPE}\",\"payload\": \"$(base64 -w 0 ${_input_artifact})\", \"csf\": \"$(base64 -w 0 ${_csf_artifact})\" }" > "${REQUEST_FILE}"
-    if CURL_CA_BUNDLE="${STAGING_DIR_NATIVE}/etc/ssl/certs/ca-certificates.crt" curl --retry 5 --silent --show-error --max-time ${_timeout} "${SIGN_API}/nxp/cst" -X POST -H "Content-Type: application/json" -H "X-API-Key: ${SIGN_API_KEY}" -d "@${REQUEST_FILE}" --output "${RESPONSE_FILE}"; then
+    echo "{\"pki_id\": \"${SIGN_IMX_PKI_ID}\", \"hab_type\": \"${SIGN_HAB_TYPE}\",\"payload\": \"$(base64 -w 0 ${_input_artifact})\", \"csf\": \"$(base64 -w 0 ${_csf_artifact})\" }" > "${REQUEST_FILE}"
+    if CURL_CA_BUNDLE="${STAGING_DIR_NATIVE}/etc/ssl/certs/ca-certificates.crt" curl --retry 5 --silent --show-error --max-time ${_timeout} "${SIGN_API}/imx/cst" -X POST -H "Content-Type: application/json" -H "X-API-Key: ${SIGN_API_KEY}" -d "@${REQUEST_FILE}" --output "${RESPONSE_FILE}"; then
         jq -r ".csf_bin" < "${RESPONSE_FILE}" | base64 -d > "${_output_artifact}"
     else
         bbfatal "Failed to sign ${_input_artifact} with error $?"
@@ -129,7 +127,7 @@ do_hab_ivt() {
     objcopy -I binary -O binary --pad-to ${_padsize_d} --gap-fill=0x00 "${_signing_artifact}" "${_ivt_artifact}"
 
     _ivt_off=$(printf 0x%x ${_padsize})
-    echo "KERNEL_SIGN_IVT_OFFSET=${_ivt_off}" > "${STAGING_DIR_HOST}/hab_auth"
+    echo "$(basename "${_signing_artifact}")_IVT_OFFSET=${_ivt_off}" >> "${STAGING_DIR_HOST}/hab_auth"
     _load_addr_d=$(printf "%d" ${_load_addr})
     _ivt_ptr=$(printf 0x%x $(expr ${_load_addr_d} + ${_padsize_d}))
     _csf_ptr=$(printf 0x%x $(expr ${_load_addr_d} + ${_padsize_d} + ${IVT_SIZE_D} ))
@@ -203,6 +201,7 @@ do_sign_hab() {
     if [ -z "${_signing_artifact}" ]; then
         bbfatal "Artifact name to sign is required"
     fi
+    bbnote "Signing ${_signing_artifact}"
     if [ -z "${HAB_LOAD_ADDR}" ]; then
         bbfatal "Load address is required"
     fi
@@ -244,6 +243,7 @@ do_sign_ahab() {
 }
 
 do_sign() {
+    bbnote "Signing ${SIGNING_ARTIFACTS}"
     for SIGNING_ARTIFACT in ${SIGNING_ARTIFACTS}; do
         do_sign_${SIGN_HAB_TYPE} ${SIGNING_ARTIFACT}
     done
