@@ -1,0 +1,61 @@
+#
+# Device interface for secure boot programming
+#
+#
+
+# secureboot_setup
+#   * Secure boot setup mode
+#   * Key enrollment
+#   * Secure boot mode checks
+# bootpart_split
+#   * Split boot partition into encrypted and non-encrypted partitions
+# secureboot_bootloader_setup
+#   * Hook for secureboot bootloader setup
+# secureboot_bootloader_postsetup
+#   * Hook for secureboot bootloader post-setup
+
+[ -f "/usr/libexec/os-helpers-sb" ] && . /usr/libexec/os-helpers-sb
+if ! command -v generate_bootpart_fingerprint > /dev/null; then . /usr/libexec/os-helpers-fs; fi
+if ! command -v split_bootpartition > /dev/null; then . /usr/libexec/os-helpers-fs; fi
+
+BALENA_NONENC_BOOT_LABEL=@@BALENA_NONENC_BOOT_LABEL@@
+
+secureboot_setup() {
+    if [ "$(jq .installer.secureboot "${CONFIG_PATH}")" = "true" ]; then
+        if @@BALENA_SKIP_SECUREBOOT_SETUP@@; then
+            warn "SKIPPING SECUREBOOT SETUP - DO NOT USE IN PRODUCTION"
+            return 0
+        fi
+        if ! command -v imx-otp-tool > /dev/null; then
+            fail "IMX OTP tool is required"
+        fi
+        info "Programming OTP with ${EXTERNAL_DEVICE_BOOT_PART_MOUNTPOINT}/efuses.bin"
+        if imx-otp-tool -q --fuse-file "${EXTERNAL_DEVICE_BOOT_PART_MOUNTPOINT}/efuses.bin" secure; then
+            imx-otp-tool show
+            return 0
+        else
+            fail "Failed to program OTP fuses"
+        fi
+    fi
+    return 1
+}
+
+bootpart_split() {
+    split_bootpartition
+}
+
+secureboot_bootloader_setup() {
+    if [ "$(jq .installer.secureboot "${CONFIG_PATH}")" = "true" ]; then
+        if [ -f "/tmp/keys/balena-enckey.bb" ]; then
+            mv /tmp/keys/balena-enckey.bb ${NONENC_BOOT_MOUNT_DIR}/balena_${ksize}.enc
+        else
+            fail "Unable to install encryption key"
+        fi
+    fi
+    return 0
+}
+
+secureboot_bootloader_postsetup() {
+    return 0
+}
+
