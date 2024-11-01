@@ -1,4 +1,180 @@
 - commits:
+    - subject: "balena-image-flasher: add efuses binary to boot partition"
+      hash: 0cebc0430e05c29c7936495bae3f34d41bf07bcb
+      body: |
+        This will be used on the secure boot provisioning setup.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "u-boot-compulab: fix conflict with iot-gate-imx8 upstream"
+      hash: e2abde693566e24274300d75165e7ddc9aab5bd3
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "u-boot: modify env_resin to boot identifying root using labels"
+      hash: 4bd5d01d6a70906ccba2e93860a2e3f145a4699a
+      body: |
+        The bootloader cannot extract the UUID from an encrypted partition
+        so we need to boot using labels.
+
+        The right solution would be to use PARTUUID but meta-balena needs
+        further changes to support PARTUUIDs instead of UUIDs.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "initramfs-framework: specialize for NXP secure boot"
+      hash: 1c499390b7c505aeb94f1d14333dafa642c35368
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "keyctl-caam: add recipe"
+      hash: 9b70d2d43adc9878f86b6ff7c390c4dfe0b064ce
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "balena-init-flasher: add nxp specialization"
+      hash: f74905241eac1592b347658434a780cf0e76f889
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "linux-balena-bootloader: sign"
+      hash: 063c8e6375ccf378f1047d832043930c2d62e834
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "linux-compulab: configure for secure boot support"
+      hash: ec09a5e518ce72357e746d1988f6ff014d29ff75
+      body: >
+        * Configure kernel for CAAM support
+
+        * Split signing into an include file for re-use in balena bootloader
+
+        * add device tree signing support
+
+        * Add patch to fix crypto engine errors
+
+
+        Backport from
+
+        https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/commit/?h=linux-5.15.y&id=f716374c4e2185618cc0a609e6a35b5266b46e5b
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "os-helpers-sb: add secure boot helpers file"
+      hash: 2428f11e4cc7cea0c1d6a04a89bb9d148e944286
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "imx-misc-tools: add recipe"
+      hash: 83a69420e712f4149473af73aa4e19ea786e4c51
+      body: |
+        This tool is used to access OTP registers from user space.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "imx-boot: deploy efuses"
+      hash: 9f0855746d3da95d526539f7db8bd61c9f961d34
+      body: |
+        This allows to later on include the e-fuses in the boot partition so
+        they can be used at provisioning time.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: imx-boot rename NXP to iMX
+      hash: 7cf705806d19b04e096f07330462b63fcdba4da2
+      body: |
+        Convert vendor into device references.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "classes: hab: sign multiple artifacts"
+      hash: 215f115d0c5b1b432a72c407b8a906bf00a38753
+      body: |
+        Extract IVT offsets for multiple artifacts to allow U-Boot to
+        authenticate not only the Linux kernel + initramfs bundle but
+        device trees too.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "classes: hab: rename NXP to iMX"
+      hash: 11f3e8273603e411f57a1e37445ee9a279515a58
+      body: |
+        Convert from vendor to device family references.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "layer.conf: use balena-imx as partition label"
+      hash: fc171929340ee6e3323f44f3a8ee03b4d0e0faf6
+      body: |
+        Convert vendor to device references.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "linux-compulab: sign kernel initramfs bundle"
+      hash: ef6a53d48f2a4510703a55503b97cf2473351400
+      body: |
+        Use the hab class to sign the kernel initramfs bundle.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+  version: 0.0.3
+  title: ""
+  date: 2024-11-01T11:22:24.361Z
+- commits:
     - subject: "linux-compulab: sign kernel initramfs bundle"
       hash: ef6a53d48f2a4510703a55503b97cf2473351400
       body: |
