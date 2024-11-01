@@ -1,0 +1,38 @@
+#
+# Device interface for secure boot programming
+#
+#
+
+# diskenc_setup
+#   * Generate and encrypt disk encryption keys
+
+. /usr/libexec/os-helpers-logging
+
+diskenc_setup() {
+    if ! caam-keygen create balena-enckey ccm -s 24; then
+        fail "Failed to create encryption key"
+    fi
+    ksize=$(stat -c %s /tmp/keys/balena-enckey)
+    if ! keyctl padd logon logkey: @u > /dev/null < /tmp/keys/balena-enckey; then
+        fail "Failed to generate encryption key"
+    fi
+}
+
+diskenc_dmsetup() {
+    _part_dev="${1}"
+    _part_name="${2}"
+    if [ -z "${_part_dev}" ]; then
+        fail "Partition device is required"
+    fi
+    if [ -z "${_part_name}" ]; then
+        fail "Partition name is required"
+    fi
+    _size=$(lsblk -nb -o NAME,SIZE "${_part_dev}" | awk '{ print $2 }')
+    # 512 bytes sectors
+    _sectors=$( expr "${_size}" / 512 )
+    # Get the key size from the file name
+    _ksize=$(stat -c %s /tmp/keys/balena-enckey)
+    # See https://www.kernel.org/doc/Documentation/device-mapper/dm-crypt.txt
+    # <logical_start_sector> <num_sectors> <target_type> <cipher> <key> <iv_offset> <device path> <offset> [<#opt_params> <opt_params>]
+    dmsetup -v create "${_part_name}" --table "0 $_sectors crypt capi:tk(cbc(aes))-plain :$_ksize:logon:logkey: 0 "${_part_dev}" 0 1 sector_size:512"
+}

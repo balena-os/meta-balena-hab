@@ -1,22 +1,23 @@
 From: Alex Gonzalez <alexg@balena.io>
-Date: Thu, 15 Aug 2024 18:33:47 +0200
-Subject: [PATCH] iot-gate-imx8: add placeholder for IVT offset to environment
+Date: Mon, 30 Sep 2024 17:05:11 +0200
+Subject: [PATCH] iot-gate-imx8: add placeholder for DTB IVT offset to
+ environment
 
 Upstream-status: Inappropriate [configuration]
-Signed-off-by: Alex Gonzalez <alexg@balena.io>
+Signed-off-by: Alex Gonzalez <alexg@balena.io>RW
 ---
  include/configs/iot-gate-imx8.h | 1 +
  1 file changed, 1 insertion(+)
 
 diff --git a/include/configs/iot-gate-imx8.h b/include/configs/iot-gate-imx8.h
-index fb0d8ab55f16..5ffcffe120d8 100644
+index 5ffcffe120d8..067630c1474e 100644
 --- a/include/configs/iot-gate-imx8.h
 +++ b/include/configs/iot-gate-imx8.h
-@@ -30,6 +30,7 @@
- 	"fdt_high=0xffffffffffffffff\0"	\
+@@ -31,6 +31,7 @@
  	"initrd_high=0xffffffffffffffff\0" \
  	"root_opt=rootwait rw\0" \
-+	"ivt_offset="__stringify(KERNEL_SIGN_IVT_OFFSET)"\0" \
+ 	"ivt_offset="__stringify(KERNEL_SIGN_IVT_OFFSET)"\0" \
++	"dtb_ivt_offset="__stringify(DTB_SIGN_IVT_OFFSET)"\0" \
  	"bootargs_common="__stringify(ENV_CONSOLE)" net.ifnames=0 "__stringify(BALENA_STAGE2)" \0" \
  	"emmc_ul=setenv boot_dev_str eMMC; run boot_try_msg; " \
  	"setenv iface mmc; setenv dev 2; setenv part 1;" \
