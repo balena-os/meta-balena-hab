@@ -22,10 +22,7 @@
 BALENA_NONENCRYPTED_BOOT_PARTITION_FILES="\
 	@@BALENA_IMAGE_FLAG_FILE@@ \
 	imx-boot-${MACHINE}-sd.bin-flash_evk \
-	ucm-imx8m-mini.dtb \
-	sb-iotgimx8.dtb \
-	sb-iotgimx8-can.dtb \
-	sb-iotgimx8-ied.dtb \
+	@@KERNEL_DEVICE_TREES@@ \
 	Image.gz \
 	bootenv \
 "
