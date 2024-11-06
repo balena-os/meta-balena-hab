@@ -1,0 +1,40 @@
+From: Alex Gonzalez <alexg@balena.io>
+Date: Wed, 6 Nov 2024 15:49:50 +0100
+Subject: [PATCH] u-boot-compulab: iot-gate-imx8plus: configure for secure boot
+
+Signed-off-by: Alex Gonzalez <alexg@balena.io>
+---
+ arch/arm/mach-imx/imx8m/Kconfig      | 4 ++++
+ arch/arm/mach-imx/imx8m/Kconfig_plus | 4 ++++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/arch/arm/mach-imx/imx8m/Kconfig b/arch/arm/mach-imx/imx8m/Kconfig
+index 812b0a53ae77..721432f95fe7 100644
+--- a/arch/arm/mach-imx/imx8m/Kconfig
++++ b/arch/arm/mach-imx/imx8m/Kconfig
+@@ -237,6 +237,10 @@ config TARGET_IOT_GATE_IMX8PLUS
+ 	select IMX8MP
+ 	select SUPPORT_SPL
+ 	select IMX8M_LPDDR4
++	select FSL_CAAM
++	select FSL_BLOB
++	select MISC
++	select SPL_CRYPTO_SUPPORT if SPL
+ 
+ endchoice
+ 
+diff --git a/arch/arm/mach-imx/imx8m/Kconfig_plus b/arch/arm/mach-imx/imx8m/Kconfig_plus
+index d21b403be757..ec8abfe6802e 100644
+--- a/arch/arm/mach-imx/imx8m/Kconfig_plus
++++ b/arch/arm/mach-imx/imx8m/Kconfig_plus
+@@ -183,6 +183,10 @@ config TARGET_IOT_GATE_IMX8PLUS
+ 	select IMX8MP
+ 	select SUPPORT_SPL
+ 	select IMX8M_LPDDR4
++	select FSL_CAAM
++	select FSL_BLOB
++	select MISC
++	select SPL_CRYPTO_SUPPORT if SPL
+ 
+ endchoice
+ 

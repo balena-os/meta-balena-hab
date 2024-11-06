@@ -31,6 +31,11 @@ SRC_URI:append:iot-gate-imx8 = " \
     file://iot-gate-imx8-add-placeholder-for-DTB-IVT-offset-to-.patch \
 "
 
+SRC_URI:append:iot-gate-imx8plus = " \
+    file://compulab-imx8m-plus-adjust-environment-for-secure-bo.patch \
+    file://u-boot-compulab-iot-gate-imx8plus-configure-for-secu.patch \
+"
+
 SRC_URI:append:mx8m-generic-bsp = " \
     file://security.cfg \
     file://mach-imx-hab-allow-to-specify-custom-IVT-offset-from.patch \
