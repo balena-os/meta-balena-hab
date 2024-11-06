@@ -25,12 +25,15 @@ do_generate_resin_uboot_configuration[depends] += " \
     virtual/balena-bootloader:do_sign_kernel_bundle \
 "
 
-SRC_URI:append:mx8m-generic-bsp = " \
-    file://security.cfg \
-    file://mach-imx-hab-allow-to-specify-custom-IVT-offset-from.patch \
+SRC_URI:append:iot-gate-imx8 = " \
     file://iot-gate-imx8-extend-the-load-address-for-FDT-files.patch \
     file://iot-gate-imx8-add-placeholder-for-IVT-offset-to-envi.patch \
     file://iot-gate-imx8-add-placeholder-for-DTB-IVT-offset-to-.patch \
+"
+
+SRC_URI:append:mx8m-generic-bsp = " \
+    file://security.cfg \
+    file://mach-imx-hab-allow-to-specify-custom-IVT-offset-from.patch \
     file://image-fdt-introduce-HAB-authentication-for-device-tr.patch \
 "
 
