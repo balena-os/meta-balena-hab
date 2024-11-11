@@ -17,6 +17,7 @@ do_install:append() {
 	sed -i -e "s,@@KERNEL_IMAGETYPE@@,${KERNEL_IMAGETYPE},g" ${D}${libexecdir}/os-helpers-sb
 	sed -i -e "s,@@BALENA_IMAGE_FLAG_FILE@@,${BALENA_IMAGE_FLAG_FILE},g" ${D}${libexecdir}/os-helpers-sb
 	sed -i -e "s,@@KERNEL_DEVICE_TREES@@,${KERNEL_DEVICE_TREES},g" ${D}${libexecdir}/os-helpers-sb
+	sed -i -e "s,@@MACHINE@@,${MACHINE},g" ${D}${libexecdir}/os-helpers-sb
 	if [ "${BALENA_IS_SECURED_CHECK_SKIP}" != "0" ]; then
 		bbwarn "IS_SECURED_CHECK_SKIP set - do not use in production"
 		sed -i -e "s,@@IS_SECURED_CHECK_SKIP@@,true,g" ${D}${libexecdir}/os-helpers-sb

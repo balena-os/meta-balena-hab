@@ -21,7 +21,7 @@
 
 BALENA_NONENCRYPTED_BOOT_PARTITION_FILES="\
 	@@BALENA_IMAGE_FLAG_FILE@@ \
-	imx-boot-${MACHINE}-sd.bin-flash_evk \
+	imx-boot-@@MACHINE@@-sd.bin-flash_evk \
 	@@KERNEL_DEVICE_TREES@@ \
 	Image.gz \
 	bootenv \
