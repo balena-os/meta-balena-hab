@@ -36,6 +36,8 @@ secureboot_setup() {
         else
             fail "Failed to program OTP fuses"
         fi
+    elif is_secured; then
+        fail "Device is locked - please opt-in secure boot mode in the installer configuration"
     fi
     return 1
 }
