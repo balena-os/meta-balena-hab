@@ -51,3 +51,6 @@ do_configure:prepend:mx8m-generic-bsp () {
 # For KERNEL_SIGN_IVT_OFFSET and DTB_SIGN_IVT_OFFSET
 do_generate_resin_uboot_configuration[depends] += " virtual/balena-bootloader:do_populate_sysroot"
 
+# Do not use A/B u-boot support as the loading of environmental files is disabled
+# the balena-bootloader will deal with A/B rollbacks
+OS_BOOTCOUNT_SKIP = "1"
