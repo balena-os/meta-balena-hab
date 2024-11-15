@@ -145,7 +145,6 @@
                "fi;\0" \
        \
        "resin_inject_env_file=" \
-               "if run resin_load_env_file; then " \
                        "run resin_import_env_file;" \
                "fi;" \
                "if run balena_load_extra_env_file; then " \
@@ -162,7 +161,7 @@
               "setexpr resin_roota ${resin_boot_part} + 1; " \
               "setexpr resin_rootb ${resin_boot_part} + 2; " \
               "run os_inc_bc_save;" \
-              "if test -n ${os_bc_lim}; then " \
+              "if test -n ${os_bc_lim} && test -n ${bootcount}; then " \
                       "if test ${bootcount} -gt ${os_bc_lim}; then " \
                                "echo WARNING! BOOTLIMIT EXCEEDED. SWITCHING TO PREVIOUS ROOT;" \
                                "echo WARNING! was: resin_root_part=${resin_root_part};" \
@@ -179,7 +178,6 @@
                "setenv os_cmdline ${base_os_cmdline} ${bootparam_flasher} ${extra_os_cmdline};\0" \
        "resin_set_kernel_root=" \
                "run resin_set_dev_index;" \
-               "run resin_inject_env_file;" \
                "run resin_check_altroot;" \
                "if test -z \"${resin_flasher_dev_index}\"; then " \
                    "env set resin_root_str resin-rootA; " \
