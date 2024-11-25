@@ -6,13 +6,6 @@
 . /usr/libexec/os-helpers-sb
 . /usr/sbin/balena-config-defaults
 
-# Give a chance to the by-state directory to appear
-# We do not expect any particular device or partition to come up
-# but if balenaOS is correctly configured on the device the by-state
-# directory will eventually be created by the custom udev rule.
-# This is useful if the rootfs is on a device that takes a while
-# to initialize such as a USB disk.
-wait4file "/dev/disk/by-state" "${bootparam_rootdelay:-0}"
 BALENA_NONENC_BOOT_DEV=""
 
 cryptsetup_enabled() {
@@ -23,24 +16,52 @@ cryptsetup_enabled() {
 
     # Ensure that secure boot is enabled and device is locked
     if ! is_secured; then
+        info "Won't attempt to decrypt drives because secure boot is not enabled"
         return 1
     fi
 
-    BALENA_NONENC_BOOT_DEV=$(get_state_path_from_label @@BALENA_NONENC_BOOT_LABEL@@)
-    # Only run if the boot partition is split
-    if [ ! -e "$BALENA_NONENC_BOOT_DEV" ]; then
-        return 1
-    fi
 
     return 0
 }
 
 cryptsetup_run() {
+    # Die if anything fails here
+    set -e
+
+    # Make sure there is only a single unencrypted partition.
+    # We will blindly mount it here with no further authentication,
+    # so if there are ambiguities, we prefer to bail out.
+    NONENC_PARTS="$(lsblk -nlo label | grep "${BALENA_NONENC_BOOT_LABEL}")"
+    if [ -z "${NONENC_PARTS}" ]; then
+        fail "Partition '${BALENA_NONENC_BOOT_LABEL}' not found"
+    fi
+
+    if [ "$(echo "${NONENC_PARTS}" | wc -l)" -gt 1 ]; then
+        fail "Multiple '${BALENA_NONENC_BOOT_LABEL}' partitions found"
+    fi
+
+    BALENA_NONENC_BOOT_DEV=$(get_state_path_from_label "${BALENA_NONENC_BOOT_LABEL}")
+    # Only run if the boot partition is split
+    if [ ! -e "$BALENA_NONENC_BOOT_DEV" ]; then
+        fail "Won't attempt to decrypt drives because the boot partition is not split"
+        return 1
+    fi
+
+    # Check whether there are any encrypted partitions
+    if ! dmsetup ls --target crypt | grep -q .; then
+        fail "There are no encrypted partitions"
+    fi
+
     TMP_MOUNT_DIR=$(mktemp -d)
     _tmpkey="ikey"
     # Configured in the keyctl-caam source
     _keydir="/tmp/keys"
     mount "$BALENA_NONENC_BOOT_DEV" "$TMP_MOUNT_DIR"
+
+    # Make sure there is only one key
+    if [ "$(find  "$TMP_MOUNT_DIR" -name "balena_*.enc" | wc -l)" -gt "1" ]; then
+        fail "Multiple encryption keys found"
+    fi
 
     for keyfile in "$TMP_MOUNT_DIR"/balena_*.enc; do
         if [ ! -e "${keyfile}" ]; then
@@ -56,21 +77,22 @@ cryptsetup_run() {
     done
 
     if [ -f ${_keydir}/${_tmpkey} ]; then
-        keyctl padd logon logkey: @u < ${_keydir}/${_tmpkey}
+        keyctl padd logon logkey: @u < ${_keydir}/${_tmpkey} > /dev/null
     else
         fail "Imported key not found"
     fi
 
     BOOT_DEVICE=$(lsblk -nlo pkname "${BALENA_NONENC_BOOT_DEV}")
     UNLOCKED=""
+    VALID_PARTLABELS="boot rootA rootB state data"
     for PART_DEV in $(lsblk -nlo kname,type "/dev/${BOOT_DEVICE}" | grep part | awk '{print $1}'); do
         PART_NAME=$(lsblk -nlo partlabel "/dev/${PART_DEV}")
         if [ "${PART_NAME}" = "${BALENA_NONENC_BOOT_LABEL}" ]; then
             continue
         fi
-        _valid_partlabels="resin-boot resin-rootA resin-rootB resin-state resin-data"
-        case " ${_valid_partlabels} " in
-            *" ${PART_NAME} "*) ;;
+        case " ${VALID_PARTLABELS} " in
+            *" ${PART_NAME#resin-} "*) ;;
+            *" ${PART_NAME#balena-} "*) ;;
             *) fail "Trying to mount unknown partition label ${PART_NAME}";;
         esac
         _size=$(lsblk -nb -o NAME,SIZE "/dev/${PART_DEV}" | awk '{ print $2 }')
@@ -92,6 +114,41 @@ cryptsetup_run() {
     # re-run them here.
     udevadm trigger
 
-    umount "$TMP_MOUNT_DIR"
-    rmdir "$TMP_MOUNT_DIR"
+    # Perform sanity checks after unlocking.
+    # We know what the system should look like after the partitions are unlocked.
+    # We want to make sure that the newly unlocked partitions are the ones
+    # we are going to actually use, there is nothing missing and nothing extra.
+    ENCRYPTED_PARTITIONS="$(dmsetup ls --target crypt | awk '{print $1}')"
+
+    # Check that we have the expected amount of encrypted partitions on the boot device
+    if [ "$(echo "${ENCRYPTED_PARTITIONS}" | wc -l)" != "$(echo "${VALID_PARTLABELS}" | wc -w)" ]; then
+        fail "An unexpected amount of encrypted partitions was found"
+    fi
+
+    if [ "$(echo "${ENCRYPTED_PARTITIONS}" | wc -l)" != "$(echo "${UNLOCKED}" | wc -w)" ]; then
+        fail "An unexpected amount of encrypted partitions was unlocked"
+    fi
+
+    for PART_NAME in ${VALID_PARTLABELS}; do
+        ENC_PART_COUNT=$(echo "${ENCRYPTED_PARTITIONS}" | grep -Ec "^(resin|balena)-${PART_NAME}$")
+
+        if [ "${ENC_PART_COUNT}" -lt "1"  ]; then
+            fail "Partition '${PART_NAME}' not found"
+        fi
+
+        if [ "${ENC_PART_COUNT}" -gt "1"  ]; then
+            fail "More than one '${PART_NAME}' partition found"
+        fi
+
+        PART_COUNT=$(lsblk -nlo label | grep -Ec "^(resin|balena)-${PART_NAME}$")
+        if [ "${PART_COUNT}" -gt "1" ]; then
+            fail "More than one '${PART_NAME}' found"
+        fi
+    done
+    if umount "$TMP_MOUNT_DIR"; then
+        rmdir "$TMP_MOUNT_DIR"
+    fi
+
+    # Revert the die on error
+    set +e
 }
