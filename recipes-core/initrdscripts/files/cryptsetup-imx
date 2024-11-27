@@ -102,8 +102,9 @@ cryptsetup_run() {
             *) fail "Trying to mount unknown partition label ${PART_NAME}";;
         esac
         _size=$(lsblk -nb -o NAME,SIZE "/dev/${PART_DEV}" | awk '{ print $2 }')
-        _sectors=$( expr "$_size" / 512 )
-        if ! dmsetup -v create "${PART_NAME}" --table "0 $_sectors crypt capi:tk(cbc(aes))-plain :$_ksize:logon:logkey: 0 /dev/${PART_DEV} 0 1 sector_size:512"; then
+        _sector_size=$(lsblk -nlbo NAME,PHY-SEC,TYPE "/dev/${PART_DEV}" | awk '{print $2}')
+        _sectors=$( expr "$_size" / ${_sector_size} )
+        if ! dmsetup -v create "${PART_NAME}" --table "0 $_sectors crypt capi:tk(cbc(aes))-plain :$_ksize:logon:logkey: 0 /dev/${PART_DEV} 0 1 sector_size:${_sector_size}"; then
             fail "Failed to unlock encrypted partition ${PART_DEV}"
         fi
         UNLOCKED="${UNLOCKED} ${PART_NAME}"
