@@ -173,7 +173,7 @@ prepare_sign_csf() {
 
 [Unlock]
     Engine = CAAM
-    Features = MFG
+    Features = MID, RNG
 
 [Install Key]
     Verification index = 0

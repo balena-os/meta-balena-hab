@@ -1,0 +1,253 @@
+From: Alex Gonzalez <alexg@balena.io>
+Date: Fri, 8 Nov 2024 10:54:45 +0100
+Subject: [PATCH] Add i.MX8MP support
+
+The fuseword offset is calculated as follows:
+
+`offset = (bank * bankSize + word) * wordSize`
+
+With both bankSize and wordSize being 4 bytes for both i.MX8MM and
+i.MX8MP. Bank and word for each fuse can be obtained from the
+corresponding reference manuals.
+
+Signed-off-by: Alex Gonzalez <alexg@balena.io>
+---
+ CMakeLists.txt    | 11 +++++++++++
+ imx-otp-tool.c    |  2 ++
+ otp/otp.h         | 39 +++++++++++++++++++++++++++++++++++++++
+ otp/otp_bootcfg.c |  2 ++
+ otp/otp_bootcfg.h |  8 ++++++++
+ otp/otp_core.c    |  9 +++++++++
+ otp/otp_lock.c    |  4 ++++
+ otp/otp_lock.h    | 21 +++++++++++++++++++++
+ 8 files changed, 96 insertions(+)
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index e7067d372b8c..f9b9c381b548 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -14,6 +14,17 @@ set(LKDIRGROUP "root" CACHE STRING "Group owner for lock directory")
+ set(STORAGE_DEV "/dev/mmcblk0boot1" CACHE STRING "Device for variable storage")
+ set(STORAGE_OFFSET "0" CACHE STRING "Offset to start of variable storage")
+ 
++option(PLATFORM "Build platform" NONE)
++if (PLATFORM STREQUAL "iMX8MM")
++  message(STATUS "Building for i.MX8MM")
++  add_compile_definitions(IMX8MM)
++elseif (PLATFORM STREQUAL "iMX8MP")
++  message(STATUS "Building for i.MX8MP")
++  add_compile_definitions(IMX8MP)
++else()
++  message(FATAL_ERROR "Platform not specified")
++endif()
++
+ find_package(PkgConfig REQUIRED)
+ pkg_check_modules(ZLIB REQUIRED IMPORTED_TARGET zlib)
+ pkg_check_modules(KEYUTILS REQUIRED IMPORTED_TARGET libkeyutils)
+diff --git a/imx-otp-tool.c b/imx-otp-tool.c
+index cae01d525725..969c20dfd638 100644
+--- a/imx-otp-tool.c
++++ b/imx-otp-tool.c
+@@ -114,7 +114,9 @@ do_show (otpctx_t ctx, int argc, char * const argv[])
+ 		{ OTP_BOOT_CFG_DIR_BT_DIS,  "NXP reserved modes disabled:" },
+ 		{ OTP_BOOT_CFG_BT_FUSE_SEL, "Boot from fuses enabled:" },
+ 		{ OTP_BOOT_CFG_WDOG_ENABLE, "Watchdog enabled:" },
++#ifdef IMX8MM
+ 		{ OTP_BOOT_CFG_TZASC_ENABLE,"TZASC enabled:" },
++#endif
+ 	};
+ 	static const char *lstate_label[OTP_LOCKSTATE_COUNT] = {
+ 		[OTP_LOCKSTATE_UNLOCKED] = "unlocked",
+diff --git a/otp/otp.h b/otp/otp.h
+index 34a5b3539e60..e5a750d4559c 100644
+--- a/otp/otp.h
++++ b/otp/otp.h
+@@ -14,10 +14,46 @@
+ #include <errno.h>
+ 
+ #undef OTP_FUSEWORD
++
++#ifdef IMX8MM
++#define OTP_FUSEWORDS \
++	OTP_FUSEWORD(LOCK) \
++	OTP_FUSEWORD(TESTER0) \
++	OTP_FUSEWORD(TESTER1) \
++	OTP_FUSEWORD(TESTER3) \
++	OTP_FUSEWORD(TESTER4) \
++	OTP_FUSEWORD(TESTER5) \
++	OTP_FUSEWORD(BOOT_CFG0) \
++	OTP_FUSEWORD(BOOT_CFG1) \
++	OTP_FUSEWORD(BOOT_CFG2) \
++	OTP_FUSEWORD(BOOT_CFG3) \
++	OTP_FUSEWORD(BOOT_CFG4) \
++	OTP_FUSEWORD(SRK0) \
++	OTP_FUSEWORD(SRK1) \
++	OTP_FUSEWORD(SRK2) \
++	OTP_FUSEWORD(SRK3) \
++	OTP_FUSEWORD(SRK4) \
++	OTP_FUSEWORD(SRK5) \
++	OTP_FUSEWORD(SRK6) \
++	OTP_FUSEWORD(SRK7) \
++	OTP_FUSEWORD(SJC_RESP0) \
++	OTP_FUSEWORD(SJC_RESP1) \
++	OTP_FUSEWORD(USB_ID) \
++	OTP_FUSEWORD(FIELD_RETURN) \
++	OTP_FUSEWORD(MAC_ADDR0) \
++	OTP_FUSEWORD(MAC_ADDR1) \
++	OTP_FUSEWORD(MAC_ADDR2) \
++	OTP_FUSEWORD(SRK_REVOKE) \
++	OTP_FUSEWORD(GP10) \
++	OTP_FUSEWORD(GP11) \
++	OTP_FUSEWORD(GP20) \
++	OTP_FUSEWORD(GP21)
++#elif defined(IMX8MP)
+ #define OTP_FUSEWORDS \
+ 	OTP_FUSEWORD(LOCK) \
+ 	OTP_FUSEWORD(TESTER0) \
+ 	OTP_FUSEWORD(TESTER1) \
++	OTP_FUSEWORD(TESTER2) \
+ 	OTP_FUSEWORD(TESTER3) \
+ 	OTP_FUSEWORD(TESTER4) \
+ 	OTP_FUSEWORD(TESTER5) \
+@@ -46,6 +82,9 @@
+ 	OTP_FUSEWORD(GP11) \
+ 	OTP_FUSEWORD(GP20) \
+ 	OTP_FUSEWORD(GP21)
++#else
++#error "No platform defined"
++#endif
+ 
+ #define OTP_FUSEWORD(x_) OCOTP_##x_,
+ typedef enum {
+diff --git a/otp/otp_bootcfg.c b/otp/otp_bootcfg.c
+index a19a879b6a6e..e6d125bbfc9f 100644
+--- a/otp/otp_bootcfg.c
++++ b/otp/otp_bootcfg.c
+@@ -39,7 +39,9 @@ static const unsigned int bootcfg_offset[] = {
+ 	[OTP_BOOT_CFG_BT_FUSE_SEL]  = 28,
+ 	// BOOT_CFG1
+ 	[OTP_BOOT_CFG_WDOG_ENABLE]  = 10,
++#ifdef IMX8MM
+ 	[OTP_BOOT_CFG_TZASC_ENABLE] = 11,
++#endif
+ 	[OTP_BOOT_CFG_WDOG_TIMEOUT] = 16,
+ };
+ 
+diff --git a/otp/otp_bootcfg.h b/otp/otp_bootcfg.h
+index a21db1ba219c..17eccafe65d4 100644
+--- a/otp/otp_bootcfg.h
++++ b/otp/otp_bootcfg.h
+@@ -18,10 +18,18 @@
+ 	OTP_BOOTCFG0(SJC_DISABLE) \
+ 	OTP_BOOTCFG0(SEC_CONFIG)
+ #undef OTP_BOOTCFG1
++#ifdef IMX8MM
+ #define OTP_BOOT_CFG1_GENERIC_FUSES \
+ 	OTP_BOOTCFG1(WDOG_ENABLE) \
+ 	OTP_BOOTCFG1(TZASC_ENABLE) \
+ 	OTP_BOOTCFG1(WDOG_TIMEOUT)
++#elif defined(IMX8MP)
++#define OTP_BOOT_CFG1_GENERIC_FUSES \
++	OTP_BOOTCFG1(WDOG_ENABLE) \
++	OTP_BOOTCFG1(WDOG_TIMEOUT)
++#else
++#error "Platform not defined"
++#endif
+ #define OTP_BOOTCFG0(name_) OTP_BOOT_CFG_##name_,
+ #define OTP_BOOTCFG1(name_) OTP_BOOT_CFG_##name_,
+ typedef enum {
+diff --git a/otp/otp_core.c b/otp/otp_core.c
+index dd0fde1d9548..c4b5c5ddf31d 100644
+--- a/otp/otp_core.c
++++ b/otp/otp_core.c
+@@ -21,10 +21,15 @@ struct otpctx_s {
+ 	int fd;
+ };
+ 
++/* (bank * bankSize + word) * wordSize */
++/* for both i.MX8MM and i.MX8MP bankSize == 4, wordSize == 4  */
+ static off_t fuseword_offsets[] = {
+ 	[OCOTP_LOCK]		= 0x0,
+ 	[OCOTP_TESTER0]		= 0x4,
+ 	[OCOTP_TESTER1]		= 0x8,
++#ifdef IMX8MP
++	[OCOTP_TESTER2]		= 0xC,
++#endif
+ 	[OCOTP_TESTER3]		= 0x10,
+ 	[OCOTP_TESTER4]		= 0x14,
+ 	[OCOTP_TESTER5]		= 0x18,
+@@ -77,7 +82,11 @@ is_compatible (void)
+ 		return false;
+ 	// Change terminating \n to \0
+ 	socid[n-1] = '\0';
++#ifdef IMX8MM
+ 	return strcmp(socid, "i.MX8MM") == 0;
++#elif IMX8MP
++	return strcmp(socid, "i.MX8MP") == 0;
++#endif
+ 
+ } /* is_compatible */
+ 
+diff --git a/otp/otp_lock.c b/otp/otp_lock.c
+index fb0bcffe39e4..9efc2ec5295f 100644
+--- a/otp/otp_lock.c
++++ b/otp/otp_lock.c
+@@ -23,10 +23,14 @@ static unsigned int lock_offsets[] = {
+ 	[OTP_LOCK_SJC_RESP] = 10,
+ 	[OTP_LOCK_USB_ID] = 12,
+ 	[OTP_LOCK_MAC_ADDR] = 14,
++#ifdef IMX8MM
+ 	[OTP_LOCK_MANUFACTURE_KEY] = 16,
++#endif
+ 	[OTP_LOCK_GP1] = 20,
+ 	[OTP_LOCK_GP2] = 22,
++#ifdef IMX8MM
+ 	[OTP_LOCK_GP5] = 24,
++#endif
+ };
+ 
+ #define OTP_LOCK_1BIT(name_) [OTP_LOCK_##name_] = true,
+diff --git a/otp/otp_lock.h b/otp/otp_lock.h
+index 5ee6ad6b56bd..39f856af4e4f 100644
+--- a/otp/otp_lock.h
++++ b/otp/otp_lock.h
+@@ -11,6 +11,7 @@
+ #include <stdint.h>
+ 
+ #undef OTP_LOCK_2BIT
++#ifdef IMX8MM
+ #define OTP_LOCKS_2BIT \
+ 	OTP_LOCK_2BIT(TESTER) \
+ 	OTP_LOCK_2BIT(BOOT_CFG) \
+@@ -19,11 +20,31 @@
+ 	OTP_LOCK_2BIT(GP1) \
+ 	OTP_LOCK_2BIT(GP2) \
+ 	OTP_LOCK_2BIT(GP5)
++#elif defined(IMX8MP)
++#define OTP_LOCKS_2BIT \
++	OTP_LOCK_2BIT(TESTER) \
++	OTP_LOCK_2BIT(BOOT_CFG) \
++	OTP_LOCK_2BIT(USB_ID) \
++	OTP_LOCK_2BIT(MAC_ADDR) \
++	OTP_LOCK_2BIT(GP1) \
++	OTP_LOCK_2BIT(GP2)
++#else
++#define OTP_LOCKS_2BIT
++#endif
++
+ #undef OTP_LOCK_1BIT
++#ifdef IMX8MP
++#define OTP_LOCKS_1BIT \
++	OTP_LOCK_1BIT(SRK) \
++	OTP_LOCK_1BIT(SJC_RESP)
++#elif defined(IMX8MM)
+ #define OTP_LOCKS_1BIT \
+ 	OTP_LOCK_1BIT(SRK) \
+ 	OTP_LOCK_1BIT(SJC_RESP) \
+ 	OTP_LOCK_1BIT(MANUFACTURE_KEY)
++#else
++#error"No platform defined"
++#endif
+ 
+ #define OTP_LOCK_2BIT(name_) OTP_LOCK_##name_,
+ #define OTP_LOCK_1BIT(name_) OTP_LOCK_##name_,

@@ -1,0 +1,45 @@
+From: Alex Gonzalez <alexg@balena.io>
+Date: Wed, 6 Nov 2024 11:17:58 +0100
+Subject: [PATCH] compulab-imx8m-plus: adjust environment for secure boot
+
+* Extend the maximum kernel bundle size to 124M
+
+The current difference between the kernel load address and the FDT load
+address is roughly 75M, which limits the size of the usable initramfs
+when bundled with the kernel.
+
+* Add placeholders for both kernel and device tree IVT offsets
+
+Signed-off-by: Alex Gonzalez <alexg@balena.io>
+---
+ include/configs/compulab-imx8m-plus.h | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/include/configs/compulab-imx8m-plus.h b/include/configs/compulab-imx8m-plus.h
+index 791543e30460..121074d0c20a 100644
+--- a/include/configs/compulab-imx8m-plus.h
++++ b/include/configs/compulab-imx8m-plus.h
+@@ -82,10 +82,10 @@
+ 	"image=Image.gz\0" \
+ 	"splashimage=0x50000000\0" \
+ 	"console=ttymxc1,115200\0" \
+-	"fdt_addr_r=0x45000000\0"			\
+-	"fdt_addr=0x45000000\0"			\
+-	"fdto_addr_r=0x45800000\0"		\
+-	"zip_addr=48440000\0" \
++	"fdt_addr_r=0x48480000\0"			\
++	"fdt_addr=0x48480000\0"			\
++	"fdto_addr_r=0x49480000\0"		\
++	"zip_addr=70000000\0" \
+ 	"boot_fdt=try\0" \
+ 	"fdt_high=0xffffffffffffffff\0"		\
+ 	"boot_fit=no\0" \
+@@ -138,6 +138,8 @@
+ 		"usb_dev=0\0" \
+ 		"boot_part=1\0" \
+ 		"root_opt=rootwait rw\0" \
++		"ivt_offset="__stringify(KERNEL_SIGN_IVT_OFFSET)" \0" \
++		"dtb_ivt_offset="__stringify(DTB_SIGN_IVT_OFFSET)" \0" \
+ 		"emmc_ul=setenv iface mmc; setenv dev ${emmc_dev}; setenv part ${resin_root_part};" \
+ 		"run mmcargs; \0" \
+ 		"sd_ul=setenv iface mmc; setenv dev ${sd_dev}; setenv part ${boot_part};" \
