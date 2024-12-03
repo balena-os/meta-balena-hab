@@ -1,4 +1,68 @@
 - commits:
+    - subject: "u-boot-compulab: remove injection of enviromental files"
+      hash: 57e6353cf2613b103d1db4a1fa771e7db8902da7
+      body: |
+        U-boot is not currently checking the signatures of environment files so
+        do not inject them into the environment.
+
+        Once environment files can be signed we could consider re-enabling this
+        functionality adding a signature verification step in U-Boot.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "resin-init: fail on re-programming a non-secure boot enabled locked
+        device"
+      hash: 4c1457ba5f91362bcfcbd89b4dfa5cc6cbd2c79c
+      body: |
+        The flasher image includes signed artifacts so it can theoretically
+        re-install a locked device without encrypted disks.
+
+        This commit disallows that configuration.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "hab: configure CFS to unlock extra features"
+      hash: d51adaddeab0c4ce4487347f524eae16df68edb0
+      body: |
+        When closed, HAB locks the job ring and DECO master ID registers by
+        default.
+
+        This commit changes the CSF descriptor to:
+
+        * Leave Job Ring and DECO master ID registers unlocked (MID)
+        * Leave RNG state handle 0 uninstantiated, do not generate
+          descriptor keys, do not set the AES DPA mask, and do not
+          block state handle 0 test instantiation. (RNG)
+        * Do not keep manufacturing protection private key in CAAM internal
+          memory. (-MFG)
+
+        This allows a locked device to initialize and use the CAAM.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "os-helpers: Fix u-boot file name"
+      hash: 4a5137a45485980dd095724b84ca56b76c848f85
+      body: |
+        Substitute the MACHINE variable at compile time.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+  version: 0.0.4
+  title: ""
+  date: 2024-12-03T14:13:50.761Z
+- commits:
     - subject: "balena-image-flasher: add efuses binary to boot partition"
       hash: 0cebc0430e05c29c7936495bae3f34d41bf07bcb
       body: |
@@ -70,18 +134,13 @@
       author: Alex Gonzalez
     - subject: "linux-compulab: configure for secure boot support"
       hash: ec09a5e518ce72357e746d1988f6ff014d29ff75
-      body: >
+      body: |
         * Configure kernel for CAAM support
-
         * Split signing into an include file for re-use in balena bootloader
-
         * add device tree signing support
-
         * Add patch to fix crypto engine errors
 
-
         Backport from
-
         https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/commit/?h=linux-5.15.y&id=f716374c4e2185618cc0a609e6a35b5266b46e5b
       footer:
         Change-type: patch
