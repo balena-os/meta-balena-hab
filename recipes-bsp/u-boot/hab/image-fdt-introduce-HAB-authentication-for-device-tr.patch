@@ -1,6 +1,6 @@
 From: Alex Gonzalez <alexg@balena.io>
 Date: Mon, 30 Sep 2024 17:35:36 +0200
-Subject: [PATCH 1/2] image-fdt: introduce HAB authentication for device trees
+Subject: [PATCH] image-fdt: introduce HAB authentication for device trees
 
 Signed-off-by: Alex Gonzalez <alexg@balena.io>
 ---
@@ -32,7 +32,7 @@ index 1181bda6e6f5..b8561128d3a3 100644
 +	return imx_hab_authenticate_image(ddr_start, bytes, dtb_ivt_offset);
 +}
 diff --git a/common/image-fdt.c b/common/image-fdt.c
-index 6bd3c3930d19..756646081d95 100644
+index 6bd3c3930d19..e43ed04f2f1c 100644
 --- a/common/image-fdt.c
 +++ b/common/image-fdt.c
 @@ -510,6 +510,14 @@ int boot_get_fdt(int flag, int argc, char *const argv[], uint8_t arch,
@@ -42,7 +42,7 @@ index 6bd3c3930d19..756646081d95 100644
 +#if defined(CONFIG_IMX_HAB)
 +	extern int authenticate_dtb(uint32_t ddr_start, uint32_t raw_image_size);
 +	if (authenticate_dtb((uintptr_t)fdt_blob, *of_size) != 0) {
-+		printf("Authenticate dtb failure, please check\n");
++		panic("Authenticate dtb failure, bailing out\n");
 +	} else {
 +		printf("DTB authentication passed\n");
 +	}
