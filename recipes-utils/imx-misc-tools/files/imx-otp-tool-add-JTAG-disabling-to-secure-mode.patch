@@ -1,0 +1,328 @@
+From: Alex Gonzalez <alexg@balena.io>
+Date: Thu, 5 Dec 2024 19:41:59 +0100
+Subject: [PATCH] imx-otp-tool: add JTAG disabling to secure mode
+
+Signed-off-by: Alex Gonzalez <alexg@balena.io>
+---
+ imx-otp-tool.c    | 132 ++++++++++++++++++++++++++++++++++++++++------
+ otp/otp_bootcfg.c |  52 ++++++++++++++++++
+ otp/otp_bootcfg.h |   8 ++-
+ 3 files changed, 174 insertions(+), 18 deletions(-)
+
+diff --git a/imx-otp-tool.c b/imx-otp-tool.c
+index 969c20dfd638..6705b2e40dc6 100644
+--- a/imx-otp-tool.c
++++ b/imx-otp-tool.c
+@@ -28,11 +28,16 @@ static bool     have_srk_hash = false;
+ static uint32_t null_hash[8] = { 0 };
+ static char *progname;
+ static bool opt_quiet = false;
++static bool jtag_enable = false;
++static bool debug_mode = false;
+ 
+ typedef int (*option_routine_t)(otpctx_t ctx, int argc, char * const argv[]);
+ static int do_check_secure(otpctx_t ctx, int argc, char * const argv[]);
+ static int do_secure(otpctx_t ctx, int argc, char * const argv[]);
+ static int do_show(otpctx_t ctx, int argc, char * const argv[]);
++static char * bootcfg_get_jtag_smode(uint32_t * bootcfg, char * msg, size_t msglen);
++static int onebit_bootcfg_update(otpctx_t ctx, uint32_t * bootcfg, uint32_t reg, const char * label);
++static int twobit_bootcfg_update(otpctx_t ctx, uint32_t * bootcfg, uint32_t offset, const char * label);
+ 
+ static struct {
+ 	const char *cmd;
+@@ -47,15 +52,19 @@ static struct {
+ static struct option options[] = {
+ 	{ "device",		required_argument,	0, 'd' },
+ 	{ "fuse-file",		required_argument,	0, 'f' },
++	{ "jtag-enable",	no_argument,		0, 'j' },
++	{ "debug-mode",		no_argument,		0, 'm' },
+ 	{ "help",		no_argument,		0, 'h' },
+ 	{ "quiet",		no_argument,		0, 'q' },
+ 	{ 0,			0,			0, 0   }
+ };
+-static const char *shortopts = ":d:f:chq";
++static const char *shortopts = ":d:f:jmhq";
+ 
+ static char *optarghelp[] = {
+ 	"--device             ",
+ 	"--fuse-file          ",
++	"--jtag-enable        ",
++	"--debug-mode         ",
+ 	"--help               ",
+ 	"--quiet              ",
+ };
+@@ -63,6 +72,8 @@ static char *optarghelp[] = {
+ static char *opthelp[] = {
+ 	"path to the OCOTP nvmem device",
+ 	"path to the SRK_1_2_3_4_fuse.bin file",
++	"skip JTAG disable on secure command",
++	"skip debug mode disable on secure command",
+ 	"display this help text",
+ 	"omit prompts and information displays",
+ };
+@@ -88,6 +99,29 @@ print_usage (void)
+ 
+ } /* print_usage */
+ 
++static char * bootcfg_get_jtag_smode(uint32_t * bootcfg, char * msg, size_t msglen) {
++	uint8_t val = 0;
++	if (otp_bootcfg_twobit_get(bootcfg, OTP_BOOTCFG_WORD_COUNT,
++				 OTP_BOOT_CFG_JTAG_SMODE, &val) == 0) {
++		switch (val) {
++			case 0:
++				snprintf(msg, msglen, "JTAG enabled");
++				break;
++			case 1:
++				snprintf(msg, msglen, "secure JTAG enabled");
++				break;
++			case 3:
++				snprintf(msg, msglen, "Debug mode disabled");
++				break;
++			default:
++				snprintf(msg, msglen, "ERROR: Unknown mode %d", val);
++				break;
++		}
++	} else {
++		snprintf(msg, msglen, "ERROR: Failed to read JTAG_SMODE");
++	}
++	return msg;
++}
+ 
+ /*
+  * do_show
+@@ -110,7 +144,9 @@ do_show (otpctx_t ctx, int argc, char * const argv[])
+ 		const char *label;
+ 	} bootcfg_fuses[] = {
+ 		{ OTP_BOOT_CFG_SJC_DISABLE, "JTAG disabled:" },
++		{ OTP_BOOT_CFG_JTAG_SMODE,  "Debug mode disabled:" },
+ 		{ OTP_BOOT_CFG_SEC_CONFIG,  "Secure config closed:" },
++		{ OTP_BOOT_CFG_JTAG_HEO,    "HAB JTAG override:" },
+ 		{ OTP_BOOT_CFG_DIR_BT_DIS,  "NXP reserved modes disabled:" },
+ 		{ OTP_BOOT_CFG_BT_FUSE_SEL, "Boot from fuses enabled:" },
+ 		{ OTP_BOOT_CFG_WDOG_ENABLE, "Watchdog enabled:" },
+@@ -170,7 +206,12 @@ do_show (otpctx_t ctx, int argc, char * const argv[])
+ 			perror("otp_bootcfg_bool_get");
+ 			return 1;
+ 		}
+-		printf("%-32.32s %s\n", bootcfg_fuses[i].label, (val ? "YES" : "NO"));
++		if (i == OTP_BOOT_CFG_JTAG_SMODE) {
++			char msg[64];
++			printf("%-32.32s %s\n", bootcfg_fuses[i].label, bootcfg_get_jtag_smode(bootcfg, msg, sizeof(msg)));
++		} else {
++			printf("%-32.32s %s\n", bootcfg_fuses[i].label, (val ? "YES" : "NO"));
++		}
+ 		if (i == OTP_BOOT_CFG_WDOG_ENABLE)
+ 			printf("%-32.32s %u sec\n", "Watchdog timeout:", wd_timeout);
+ 	}
+@@ -185,6 +226,61 @@ do_show (otpctx_t ctx, int argc, char * const argv[])
+ 
+ } /* do_show */
+ 
++static int onebit_bootcfg_update(otpctx_t ctx, uint32_t * bootcfg, uint32_t reg, const char * label) {
++	bool val;
++	if (otp_bootcfg_bool_get(bootcfg, OTP_BOOTCFG_WORD_COUNT,
++				 reg, &val) < 0) {
++		perror("otp_bootcfg_bool_get");
++		return 1;
++	}
++	if (val) {
++		if (!opt_quiet)
++			printf("%s fuse already programmed.\n", label);
++	} else {
++		if (!opt_quiet)
++			printf("Programming %s fuse.\n", label);
++		if (otp_bootcfg_bool_set(bootcfg, OTP_BOOTCFG_WORD_COUNT,
++					 reg, true) < 0) {
++			perror("otp_bootcfg_bool_set");
++			return 1;
++		}
++		if (otp_bootcfg_update(ctx, bootcfg, OTP_BOOTCFG_WORD_COUNT) < 0) {
++			perror("otp_bootcfg_update");
++			return 1;
++		}
++		if (!opt_quiet)
++			printf("%s fuse programmed.\n", label);
++	}
++	return 0;
++}
++
++static int twobit_bootcfg_update(otpctx_t ctx, uint32_t * bootcfg, uint32_t offset, const char * label) {
++	uint8_t val;
++	if (otp_bootcfg_twobit_get(bootcfg, OTP_BOOTCFG_WORD_COUNT,
++				 offset, &val) < 0) {
++		perror("otp_bootcfg_twobit_get");
++		return 1;
++	}
++	if (val != 0) {
++		if (!opt_quiet)
++			printf("%s fuses already programmed.\n", label);
++	} else {
++		if (!opt_quiet)
++			printf("Programming %s fuses.\n", label);
++		if (otp_bootcfg_twobit_set(bootcfg, OTP_BOOTCFG_WORD_COUNT,
++					 offset, true) < 0) {
++			perror("otp_bootcfg_twobit_set");
++			return 1;
++		}
++		if (otp_bootcfg_update(ctx, bootcfg, OTP_BOOTCFG_WORD_COUNT) < 0) {
++			perror("otp_bootcfg_update");
++			return 1;
++		}
++		if (!opt_quiet)
++			printf("%s fuses programmed.\n", label);
++	}
++	return 0;
++}
+ 
+ /*
+  * do_secure
+@@ -265,23 +361,19 @@ do_secure (otpctx_t ctx, int argc, char * const argv[])
+ 		perror("otp_bootcfg_bool_get");
+ 		return 1;
+ 	}
+-	if (val) {
+-		if (!opt_quiet)
+-			printf("SEC_CONFIG fuse already programmed.\n");
+-	} else {
+-		if (!opt_quiet)
+-			printf("Programming SEC_CONFIG fuse.\n");
+-		if (otp_bootcfg_bool_set(bootcfg, OTP_BOOTCFG_WORD_COUNT,
+-					 OTP_BOOT_CFG_SEC_CONFIG, true) < 0) {
+-			perror("otp_bootcfg_bool_set");
++	if (onebit_bootcfg_update(ctx, bootcfg, OTP_BOOT_CFG_SEC_CONFIG, "SEC_CONFIG") )
++		return 1;
++	if (!jtag_enable) {
++		printf("Disabling JTAG.\n");
++		if (onebit_bootcfg_update(ctx, bootcfg, OTP_BOOT_CFG_SJC_DISABLE, "SJC_DISABLE"))
+ 			return 1;
+-		}
+-		if (otp_bootcfg_update(ctx, bootcfg, OTP_BOOTCFG_WORD_COUNT) < 0) {
+-			perror("otp_bootcfg_update");
++		if (onebit_bootcfg_update(ctx, bootcfg, OTP_BOOT_CFG_JTAG_HEO, "JTAG_HEO"))
++			return 1;
++	}
++	if (!debug_mode) {
++		printf("Disabling debug mode.\n");
++		if (twobit_bootcfg_update(ctx, bootcfg, OTP_BOOT_CFG_JTAG_SMODE, "JTAG_SMODE"))
+ 			return 1;
+-		}
+-		if (!opt_quiet)
+-			printf("SEC_CONFIG fuse programmed.\n");
+ 	}
+ 
+ 	return 0;
+@@ -347,6 +439,12 @@ main (int argc, char * const argv[])
+ 		case 'f':
+ 			fuse_file = optarg;
+ 			break;
++		case 'j':
++			jtag_enable = true;
++			break;
++		case 'm':
++			debug_mode = true;
++			break;
+ 		case 'q':
+ 			opt_quiet = true;
+ 			break;
+diff --git a/otp/otp_bootcfg.c b/otp/otp_bootcfg.c
+index e6d125bbfc9f..7c18c918fe24 100644
+--- a/otp/otp_bootcfg.c
++++ b/otp/otp_bootcfg.c
+@@ -34,7 +34,9 @@ static const int bootcfg_fuseword_index[] = {
+ static const unsigned int bootcfg_offset[] = {
+ 	// BOOT_CFG0
+ 	[OTP_BOOT_CFG_SJC_DISABLE]  = 21,
++	[OTP_BOOT_CFG_JTAG_SMODE]   = 22,
+ 	[OTP_BOOT_CFG_SEC_CONFIG]   = 25,
++	[OTP_BOOT_CFG_JTAG_HEO]     = 26,
+ 	[OTP_BOOT_CFG_DIR_BT_DIS]   = 27,
+ 	[OTP_BOOT_CFG_BT_FUSE_SEL]  = 28,
+ 	// BOOT_CFG1
+@@ -130,6 +132,28 @@ otp_bootcfg_bool_get (uint32_t *fusewords, size_t sizeinwords,
+ 
+ } /* otp_bootcfg_bool_get */
+ 
++/*
++ * otp_bootcfg_twobit_get
++ *
++ * Extracts the setting of a 2-bit fuse in the
++ * BOOT_CFGx fuses.
++ */
++int
++otp_bootcfg_twobit_get (uint32_t *fusewords, size_t sizeinwords,
++		      otp_boot_cfg_id_t id, uint8_t *value)
++{
++	// XXX - magic 2 here because we're only working with
++	//       BOOT_CFG0 and 1 - XXX
++	if (fusewords == NULL || value == NULL ||
++	    sizeinwords < 2 || id >= OTP_BOOT_CFG_COUNT) {
++		errno = EINVAL;
++		return -1;
++	}
++
++	*value = (fusewords[bootcfg_fuseword_index[id]] & (3U << bootcfg_offset[id])) >> bootcfg_offset[id];
++	return 0;
++
++} /* otp_bootcfg_bool_get */
+ 
+ /*
+  * otp_bootcfg_wdog_get
+@@ -184,6 +208,34 @@ otp_bootcfg_bool_set (uint32_t *fusewords, size_t sizeinwords,
+ 
+ } /* otp_bootcfg_bool_set */
+ 
++/*
++ * otp_bootcfg_twobit_set
++ *
++ * Sets/clears a 2-bit BOOT_CFGx fuse bit in the fusewords array.
++ */
++int
++otp_bootcfg_twobit_set (uint32_t *fusewords, size_t sizeinwords,
++		      otp_boot_cfg_id_t id, uint8_t value)
++{
++	// XXX - magic 2 here because we're only working with
++	//       BOOT_CFG0 and 1 - XXX
++	if (fusewords == NULL || sizeinwords < 2U || id >= OTP_BOOT_CFG_COUNT) {
++		errno = EINVAL;
++		return -1;
++	}
++
++	if (value > 3) {
++		errno = EINVAL;
++		return -1;
++	}
++	if (value > 0)
++		fusewords[bootcfg_fuseword_index[id]] |= 3U << bootcfg_offset[id];
++	else
++		fusewords[bootcfg_fuseword_index[id]] &= ~(3U << bootcfg_offset[id]);
++	return 0;
++
++} /* otp_bootcfg_twobit_set */
++
+ /*
+  * otp_bootcfg_wdog_set
+  *
+diff --git a/otp/otp_bootcfg.h b/otp/otp_bootcfg.h
+index 17eccafe65d4..90fea780c294 100644
+--- a/otp/otp_bootcfg.h
++++ b/otp/otp_bootcfg.h
+@@ -16,7 +16,9 @@
+ 	OTP_BOOTCFG0(DIR_BT_DIS) \
+ 	OTP_BOOTCFG0(BT_FUSE_SEL) \
+ 	OTP_BOOTCFG0(SJC_DISABLE) \
+-	OTP_BOOTCFG0(SEC_CONFIG)
++	OTP_BOOTCFG0(JTAG_SMODE) \
++	OTP_BOOTCFG0(SEC_CONFIG) \
++	OTP_BOOTCFG0(JTAG_HEO)
+ #undef OTP_BOOTCFG1
+ #ifdef IMX8MM
+ #define OTP_BOOT_CFG1_GENERIC_FUSES \
+@@ -53,4 +55,8 @@ int otp_bootcfg_bool_set(uint32_t *fusewords, size_t sizeinwords,
+ 			 otp_boot_cfg_id_t id, bool newvalue);
+ int otp_bootcfg_wdog_set(uint32_t *fusewords, size_t sizeinwords,
+ 			 bool enable, unsigned int timeout_in_seconds);
++int otp_bootcfg_twobit_get (uint32_t *fusewords, size_t sizeinwords,
++		      otp_boot_cfg_id_t id, uint8_t *value);
++int otp_bootcfg_twobit_set (uint32_t *fusewords, size_t sizeinwords,
++		      otp_boot_cfg_id_t id, uint8_t value);
+ #endif /* otp_bootcfg_h_included */
