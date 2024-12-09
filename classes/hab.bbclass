@@ -181,7 +181,7 @@ prepare_sign_csf() {
     Features = SRK REVOKE
 
 [Install Key]
-    Verification index = 0
+    Verification index = %%SLOT_INDEX%%
     Target Index = 2
     File = "%%CERTS_PATH%%/IMG%%SLOT_INDEX+1%%_1_sha256_%%CERTS_KEY_LENGTH%%_65537_v3_usr_crt.pem"
 
