@@ -176,6 +176,10 @@ prepare_sign_csf() {
     Engine = CAAM
     Features = MID, RNG
 
+[Unlock]
+    Engine = OCOTP
+    Features = SRK REVOKE
+
 [Install Key]
     Verification index = 0
     Target Index = 2
