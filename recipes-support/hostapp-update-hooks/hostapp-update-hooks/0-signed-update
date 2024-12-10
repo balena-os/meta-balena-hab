@@ -1,0 +1,116 @@
+#!/bin/sh
+
+# Copyright 2024 Balena Ltd.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+#
+# Script which prevents updating to a non-bootable system if secure boot is enabled
+#
+
+set -o errexit
+
+# shellcheck source=/dev/null
+. /usr/libexec/os-helpers-logging
+# shellcheck source=/dev/null
+. /usr/libexec/os-helpers-sb
+# shellcheck source=/dev/null
+. /usr/sbin/balena-config-vars
+
+DURING_UPDATE="${DURING_UPDATE:-0}"
+
+exit_with_msg() {
+    result=$?
+    exit ${result}
+}
+trap exit_with_msg EXIT
+
+# Only applicable in the new OS container
+if [ "${DURING_UPDATE}" != 1 ]; then
+    exit 0
+fi
+
+# Only applicable when in secure boot mode
+if ! is_secured; then
+    exit 0
+fi
+
+extract_slot_index() {
+    local _boot_artifact=$1
+    local _tmpdir=$(mktemp -d)
+    local _outdir="${_tmpdir}/csf-parser/output"
+
+    mkdir -p "${OUTDIR}"
+    if [ ! -L "${_tmpdir}/csf-parser/csf_parser" ]; then
+        ln -s $(find /usr/bin -name csf_parser) "${_tmpdir}/csf-parser/csf_parser"
+    fi
+
+    if [ ! -L "${_tmpdir}/csf-parser/csf_parser" ]; then
+        fail "CSF parser not found"
+    fi
+
+    if [ "$(basename "${_boot_artifact}")" = "Image.gz" ]; then
+        gunzip -c "${_boot_artifact}" > "${_tmpdir}/${_boot_artifact}"
+        _boot_artifact="${_tmpdir}/${_boot_artifact}"
+    fi
+    if "${_tmpdir}/csf-parser/csf_parser" "${_boot_artifact}"; then
+        fail "No signature found in ${_boot_artifact}"
+    else
+        if [ -e ${_outdir}/parsed_output.txt ]; then
+            slot_index="$(grep "Source Key Index of SRK" "${_outdir}/parsed_output.txt" | awk '{print $4}')"
+            if [ -n "${_prev_slot_index}" ]; then
+                if [ "${_prev_slot_index}" != "${slot_index}" ]; then
+                    fail "Multiple boot artifacts signed with different keys"
+                fi
+            else
+                _prev_slot_index="${slot_index}"
+            fi
+        else
+            fail "No output found from CSF parser"
+        fi
+    fi
+    info "${_boot_artifact} signed with index ${slot_index}"
+    rm -rf "${_tmpdir}"
+}
+
+# Check that the new OS artifacts are signed with the same key
+_new_root=$(findmnt --noheadings --canonicalize --output SOURCE /dev/disk/by-state/inactive)
+BOOT_ARTIFACTS=$(find "${_new_root}" -name "*dtb" -o -name "*flash_evk" -o -name "Image.gz")
+# Prepare tmp directory for processing
+for _boot_artifact in ${BOOT_ARTIFACTS}; do
+    extract_slot_index "${_boot_artifact}"
+done
+
+if [ -z "${slot_index}" ]; then
+    fail "No signed artifacts - aborting update"
+fi
+
+# Check that the key has not been revoked
+revoke_mask=$(imx-otp-tool show | grep "SRK revoke" | awk '{print $3}')
+if [ -n "${revoke_mask}" ]; then
+    if [ $((revoke_mask & (1 << slot_index))) -ne 0 ]; then
+        fail "Key used to sign boot artifacts has been revoked"
+    fi
+fi
+
+# Old keys are revoked by commit hooks after rollback-health has confirmed
+# the new OS is working.
+CURRENT_BOOTLOADER=$(find "${BALENA_NONENC_BOOT_MOUNTPOINT}" -name "*flash_evk")
+old_slot_index=$(extract_slot_index "${CURRENT_BOOTLOADER}")
+if [ "${old_slot_index}" != "${slot_index}" ]; then
+    REVOKE_FILE="/mnt/data/balenahup/revoke_index"
+    echo "REVOKE_INDEX=${_old_slot_index}" > "${REVOKE_FILE}" && sync -f ${REVOKE_FILE}
+    warn "Key slot update - old key slot ${_old_slot_index} will be revoked after rollback-health"
+fi
+
+exit 0

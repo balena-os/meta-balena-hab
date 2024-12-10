@@ -144,19 +144,6 @@
                        "fi; " \
                "fi;\0" \
        \
-       "resin_inject_env_file=" \
-                       "run resin_import_env_file;" \
-               "fi;" \
-               "if run balena_load_extra_env_file; then " \
-                       "run balena_import_extra_env_file;" \
-               "fi;" \
-               "if run os_load_bootcount_file; then " \
-                       "run os_import_bootcount_file;" \
-               "else; " \
-                       "echo No bootcount.env file. Setting bootcount=0 in environment;" \
-                       "env set bootcount 0;" \
-               "fi;\0" \
-       \
        "resin_check_altroot=" \
               "setexpr resin_roota ${resin_boot_part} + 1; " \
               "setexpr resin_rootb ${resin_boot_part} + 2; " \
