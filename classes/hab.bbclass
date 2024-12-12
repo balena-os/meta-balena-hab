@@ -190,10 +190,13 @@ prepare_sign_csf() {
     Blocks = \
 EOF
 
+    if [ "${BALENA_SIGN_SLOT_INDEX}" -lt "0" ] || [ "${BALENA_SIGN_SLOT_INDEX}" -gt "3" ]; then
+        bbfatal "Invalid slot index ${BALENA_SIGN_SLOT_INDEX} - expected between 0 and 3"
+    fi
     # Configure CSF template for key slot index to use
     bbnote "Configuring to use signing slot ${BALENA_SIGN_SLOT_INDEX}"
     sed -i "s/%%SLOT_INDEX%%/${BALENA_SIGN_SLOT_INDEX}/g" "${WORKDIR}/csf"
-    _slot_index_1=$(expr ${BALENA_SIGN_SLOT_INDEX} + 1)
+    _slot_index_1=$(( ${BALENA_SIGN_SLOT_INDEX} + 1))
     sed -i "s/%%SLOT_INDEX+1%%/${_slot_index_1}/g" "${WORKDIR}/csf"
     bbnote "Configuring to use certificate key lenght ${BALENA_SIGN_CERTS_KEY_LENGTH}"
     sed -i "s/%%CERTS_KEY_LENGTH%%/${BALENA_SIGN_CERTS_KEY_LENGTH}/g" "${WORKDIR}/csf"
