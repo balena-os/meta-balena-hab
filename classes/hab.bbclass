@@ -116,10 +116,11 @@ do_hab_ivt() {
 
     _image_size_d=$(image_size "${_signing_artifact}")
     _image_size=$(printf "0x%x" ${_image_size_d})
-    # Align to the next multiple of 4096
+    # Align to the next multiple of 12288
+    _align_size=12288
     # Equivalent to `raw_image_size + ALIGN_SIZE - 1) & ~(ALIGN_SIZE - 1)`
     # in U-Boot's hab.c authenticate_image()
-    _padsize_d="$( expr \( $_image_size_d + 4096 - 1 \) / 4096 \* 4096)"
+    _padsize_d="$( expr \( $_image_size_d + $_align_size - 1 \) / $_align_size \* $_align_size)"
     _padsize=$(printf "0x%x" ${_padsize_d})
     _ivt_artifact="${_signing_artifact}.ivt"
 

@@ -14,8 +14,12 @@ do_generate_resin_uboot_configuration:prepend() {
                         bb.note("KERNEL_SIGN_IVT_OFFSET is now %s" % d.getVar('KERNEL_SIGN_IVT_OFFSET'))
                     # Currently the device tree used is hardcoded in the U-Boot environment by the BSP layer
                     elif any(key.startswith(dt) for dt in devicetrees):
-                        d.setVar('DTB_SIGN_IVT_OFFSET', value)
-                        bb.note("DTB_SIGN_IVT_OFFSET is now %s" % d.getVar('DTB_SIGN_IVT_OFFSET'))
+                        dtb_sign_ivt_offset = d.getVar('DTB_SIGN_IVT_OFFSET', True)
+                        if dtb_sign_ivt_offset is None:
+                            d.setVar('DTB_SIGN_IVT_OFFSET', value)
+                            bb.note("DTB_SIGN_IVT_OFFSET is now %s" % d.getVar('DTB_SIGN_IVT_OFFSET', True))
+                        elif dtb_sign_ivt_offset != value:
+                            bb.fatal(f"IVT offset {value} should be the same {dtb_sign_ivt_offset} as other device trees.")
     if d.getVar('KERNEL_SIGN_IVT_OFFSET') == None:
         bb.fatal("Kernel IVT offset not specified")
     if d.getVar('DTB_SIGN_IVT_OFFSET') == None:
