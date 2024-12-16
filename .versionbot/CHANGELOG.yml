@@ -1,4 +1,103 @@
 - commits:
+    - subject: "imx-otp-tool: add JTAG disabling"
+      hash: af3452b35d868ca571e43ddf0b9158e93cbb27ba
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "u-boot-compulab: panic if DTB authentication fail"
+      hash: b2396da58b9f0c72bd3271862264993d5351bdf9
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "u-boot-compulab: check all device trees have the same IVT offset"
+      hash: 17c0a27af13d78079196398a933075ae9d476209
+      body: |
+        Given that we use a single U-Boot variable to keep the IVT offset, make
+        sure that all the device trees have the same IVT offset and bail out if
+        not.
+
+        We have extended the padding for all artifacts in order to accomodate
+        the same IVT offset in all existing device trees.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "classes: hab: extend padding to accomodate all device trees"
+      hash: 38a3848b14263b4436c116338d91bba982ac88f5
+      body: |
+        In order to authenticate device trees, U-boot needs to store the IVT
+        offset as an environment variable.
+
+        By extending the padding we make it so that all device trees up to
+        certain size locate the IVT header at the same offset, hence only
+        requiring a single U-Boot environment variable to hold it.
+
+        The current padding has been choosen to accomodate all current device
+        trees but in future it may need to be expanded if bigger device trees
+        are used.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "initrdscripts: cryptsetup: read sector size from disk"
+      hash: 710f30905aa134291f51db2284bf381ca94892ad
+      body: |
+        Do not assume a 512 bytes sector size even though the eMMC are unlikely
+        to be changed.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "initrdscripts: cryptsetup: erase disk on flasher request"
+      hash: 155c0fd684bcf47d3434831275ef1792fd22bf5e
+      body: |
+        When booting a flasher initramfs it's assumed the user wants to
+        reprogram.
+
+        Corrupt the internal encrypted disks at the earliest to prevent exploits
+        originating from running an authenticated flasher image.
+
+        Erasing the whole disk would be more effective but time consuming, so we
+        trade-off erasing the initial sectors of each partition and the
+        partition table to at least make recovery very painful.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "u-boot-compulab: remove injection of enviromental files"
+      hash: d0a60d37165377cc8ad795cd2f71b485aefd989d
+      body: |
+        U-boot is not currently checking the signatures of environment files so
+        do not inject them into the environment.
+
+        Once environment files can be signed we could consider re-enabling this
+        functionality adding a signature verification step in U-Boot.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+  version: 0.0.5
+  title: ""
+  date: 2024-12-16T13:26:51.331Z
+- commits:
     - subject: "u-boot-compulab: remove injection of enviromental files"
       hash: 57e6353cf2613b103d1db4a1fa771e7db8902da7
       body: |
