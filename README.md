@@ -11,6 +11,7 @@ Technically these are two distinct functionalities:
 ## Supported devices
 
 * Compulab's IOT Gate i.MX8 board (`iot-gate-imx8` device type)
+* Compulab's IOT Gate i.MX8Plus board (`iot-gate-imx8plus` device type)
 
 ## Provisioning
 
@@ -44,7 +45,7 @@ The above is commonly referred to as the "chain of trust". For `balenaOS`, the t
 
 The following OTP registers are used in the secure boot and disk encryption mechanism:
 
-* **SRK efuses**: Four public key hashes are stored in the device's One Time Programmable (OTP) memory when manufacturing. Only one slot is used at a time and up to three can be revoked.
+* **SRK efuses**: Four public key hashes are stored in the device's One Time Programmable (OTP) memory when manufacturing. Only one slot is used at a time and up to three can be revoked. Revocation is automatic when an update to an OS image signed with a different key happens and is irrevocable.
 * **Device specific private key**: A unique per device AES-CCM black key that is generated using the device's CAAM module and stored securely in hardware. The Linux kernel DM-crypt subsystem accesses the black key directly to encrypt/decrypt disks without exposing the key to user space.
 
 ## boot and imx partition split
@@ -60,13 +61,9 @@ The partitions are mounted under `/mnt/imx` and `/mnt/boot` respectively.
 Devices are locked at installation time. This involves:
 
 * Programming and locking the SRK efuses table into OTP.
+* Disabling JTAG debugging and disabling debug mode.
 
-Please note that the installer will not automatically perform the following tasks that are required to completely secure a device. These should be part of the manufacturing process.
-
-* Disabling JTAG debugging, or enabling secure JTAG mode.
-* Disabling NXP reserve modes and/or external memory boot if applicable
-
-Locking a device is irreversible. A locked device will only boot balena signed software.
+Locking a device is irreversible. A locked device will only boot correctly signed software.
 
 ## Re-programming of locked devices
 
@@ -84,3 +81,5 @@ It is important to understand that due to the nature of the feature, not all deb
 
 * **Is it possible to load out-of-tree kernel modules?** All the kernel modules need to be signed with a trusted key. At this moments we only sign the module at build time so only the out-of-tree modules that we build and ship as a part of `balenaOS` are properly signed. Loading user-built kernel modules require building custom software and is an extra service available on demand.
 * **Can I generate and use my own certificates and sign my own software?**: Publicly accessible balenaOS images are signed with shared balena certificates. Signing with custom certificates is possible but requires building custom software and is an extra service available on demand.
+* **How do I know my device has secure boot enabled?**: Until an API interface is available, the `imx-otp-tool is-secured` command can be used from the hostOS shell.
+* **How do I know my device is using encrypted storage?**: Dm-crypt partitions appear as `/dev/mapper` devices in the hostOS. You can use the `mount` command to check that all system partitions are mounted from `/dev/mapper` devices.

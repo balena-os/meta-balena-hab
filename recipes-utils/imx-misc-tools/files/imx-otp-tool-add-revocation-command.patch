@@ -1,0 +1,218 @@
+From: Alex Gonzalez <alexg@balena.io>
+Date: Mon, 9 Dec 2024 16:14:11 +0100
+Subject: [PATCH] imx-otp-tool: add revocation command
+
+Change-type: patch
+Signed-off-by: Alex Gonzalez <alexg@balena.io>
+---
+ imx-otp-tool.c | 41 ++++++++++++++++++++++++++++++++++-
+ otp/otp_srk.c  | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ otp/otp_srk.h  |  2 ++
+ 3 files changed, 100 insertions(+), 1 deletion(-)
+
+diff --git a/imx-otp-tool.c b/imx-otp-tool.c
+index 6705b2e40dc6..dcfea1f1ceab 100644
+--- a/imx-otp-tool.c
++++ b/imx-otp-tool.c
+@@ -30,11 +30,13 @@ static char *progname;
+ static bool opt_quiet = false;
+ static bool jtag_enable = false;
+ static bool debug_mode = false;
++static int8_t slot = -1;
+ 
+ typedef int (*option_routine_t)(otpctx_t ctx, int argc, char * const argv[]);
+ static int do_check_secure(otpctx_t ctx, int argc, char * const argv[]);
+ static int do_secure(otpctx_t ctx, int argc, char * const argv[]);
+ static int do_show(otpctx_t ctx, int argc, char * const argv[]);
++static int do_revoke(otpctx_t ctx, int argc, char * const argv[]);
+ static char * bootcfg_get_jtag_smode(uint32_t * bootcfg, char * msg, size_t msglen);
+ static int onebit_bootcfg_update(otpctx_t ctx, uint32_t * bootcfg, uint32_t reg, const char * label);
+ static int twobit_bootcfg_update(otpctx_t ctx, uint32_t * bootcfg, uint32_t offset, const char * label);
+@@ -47,22 +49,25 @@ static struct {
+         { "is-secured", do_check_secure, "check fuses are set for secure boot" },
+         { "secure",     do_secure,       "program fuses for secure boot" },
+         { "show",       do_show,         "show fuses" },
++        { "revoke",     do_revoke,       "revoke key slot" },
+ };
+ 
+ static struct option options[] = {
+ 	{ "device",		required_argument,	0, 'd' },
+ 	{ "fuse-file",		required_argument,	0, 'f' },
++	{ "slot",		required_argument,	0, 's' },
+ 	{ "jtag-enable",	no_argument,		0, 'j' },
+ 	{ "debug-mode",		no_argument,		0, 'm' },
+ 	{ "help",		no_argument,		0, 'h' },
+ 	{ "quiet",		no_argument,		0, 'q' },
+ 	{ 0,			0,			0, 0   }
+ };
+-static const char *shortopts = ":d:f:jmhq";
++static const char *shortopts = ":d:f:s:jmhq";
+ 
+ static char *optarghelp[] = {
+ 	"--device             ",
+ 	"--fuse-file          ",
++	"--slot               ",
+ 	"--jtag-enable        ",
+ 	"--debug-mode         ",
+ 	"--help               ",
+@@ -72,6 +77,7 @@ static char *optarghelp[] = {
+ static char *opthelp[] = {
+ 	"path to the OCOTP nvmem device",
+ 	"path to the SRK_1_2_3_4_fuse.bin file",
++	"SRK slot index to revoke (0 to 2)",
+ 	"skip JTAG disable on secure command",
+ 	"skip debug mode disable on secure command",
+ 	"display this help text",
+@@ -133,6 +139,7 @@ static int
+ do_show (otpctx_t ctx, int argc, char * const argv[])
+ {
+ 	uint32_t srk_hash[SRK_FUSE_COUNT];
++	uint8_t srk_revoke;
+ 	uint32_t bootcfg[OTP_BOOTCFG_WORD_COUNT];
+ 	uint32_t locks;
+ 	otp_lockstate_t lstate;
+@@ -166,6 +173,10 @@ do_show (otpctx_t ctx, int argc, char * const argv[])
+ 		perror("otp_srk_read");
+ 		return 1;
+ 	}
++	if (otp_srk_revoke_read(ctx, &srk_revoke) < 0) {
++		perror("otp_srk_revoke_read");
++		return 1;
++	}
+ 	if (otp_bootcfg_read(ctx, bootcfg, OTP_BOOTCFG_WORD_COUNT) < 0) {
+ 		perror("otp_bootcfg_read");
+ 		return 1;
+@@ -200,6 +211,7 @@ do_show (otpctx_t ctx, int argc, char * const argv[])
+ 	} else
+ 		printf("non-null, %s\n", lstate_label[lstate]);
+ 
++	printf("%-32.32s %01x\n", "SRK revoke:", srk_revoke);
+ 	for (i = 0; i < sizeof(bootcfg_fuses)/sizeof(bootcfg_fuses[0]); i++) {
+ 		if (otp_bootcfg_bool_get(bootcfg, OTP_BOOTCFG_WORD_COUNT,
+ 					 bootcfg_fuses[i].id, &val) < 0) {
+@@ -406,6 +418,30 @@ do_check_secure (otpctx_t ctx, int argc, char * const argv[])
+ 
+ } /* do_check_secure */
+ 
++/*
++ * do_revoke
++ */
++static int
++do_revoke (otpctx_t ctx, int argc, char * const argv[])
++{
++	if (slot < 0) {
++		printf("Slot number 0-3 required\n");
++		return 1;
++	}
++	if (slot > 3) {
++		printf("Invalid slot number %d\n", slot);
++		return 1;
++	}
++	if (otp_srk_revoke_write(ctx, slot) < 0) {
++		perror("otp_srk_revoke_write");
++		return 1;
++	}
++	if (!opt_quiet)
++		printf("Revoked slot: %d\n", slot);
++	return 0;
++
++} /* do_revoke */
++
+ /*
+  * main program
+  */
+@@ -439,6 +475,9 @@ main (int argc, char * const argv[])
+ 		case 'f':
+ 			fuse_file = optarg;
+ 			break;
++		case 's':
++			slot = strtoul(optarg, NULL, 0);
++			break;
+ 		case 'j':
+ 			jtag_enable = true;
+ 			break;
+diff --git a/otp/otp_srk.c b/otp/otp_srk.c
+index 2e6f3b967c43..bf7af7aac528 100644
+--- a/otp/otp_srk.c
++++ b/otp/otp_srk.c
+@@ -6,6 +6,7 @@
+  * Copyright (c) 2022, Matthew Madison.
+  */
+ 
++#include <stdio.h>
+ #include "otp_internal.h"
+ #include "otp_srk.h"
+ 
+@@ -80,3 +81,60 @@ otp_srk_write (otpctx_t ctx, uint32_t *newvals, size_t sizeinwords)
+ 	return SRK_FUSE_COUNT;
+ 
+ } /* otp_srk_write */
++
++/*
++ * otp_srk_revoke_read
++ * Read the SRK revoke fuse.
++ */
++int
++otp_srk_revoke_read (otpctx_t ctx, uint8_t *srk_revoke)
++{
++	uint32_t val;
++
++	if (ctx == NULL || srk_revoke == NULL) {
++		errno = EINVAL;
++		return -1;
++	}
++
++	if (otp___fuseword_read(ctx, OCOTP_SRK_REVOKE, &val) < 0) {
++		fprintf(stderr, "Failed to read SRK fuse\n");
++		return -1;
++	}
++	*srk_revoke = val & 0x7;
++	return 0;
++
++} /* otp_srk_revoke_read */
++
++/*
++ * otp_srk_revoke_write
++ * Blow the SRK revoke fuse.
++ */
++int
++otp_srk_revoke_write (otpctx_t ctx, uint8_t slot)
++{
++	uint8_t slot_mask = (1 << slot) & 0x7;
++	uint8_t current_slot_mask;
++
++	if (slot_mask == 0) {
++		fprintf(stderr, "Invalid slot number %d\n", slot);
++		return -1;
++	}
++
++	if (otp_srk_revoke_read(ctx, &current_slot_mask)){
++		fprintf(stderr, "Failed to read SRK fuse\n");
++		return -1;
++	}
++
++	if (current_slot_mask & slot_mask) {
++		fprintf(stderr, "SRK slot %d already revoked\n", slot);
++		return 0;
++	}
++
++	if (otp___fuseword_write(ctx, OCOTP_SRK_REVOKE, current_slot_mask | slot_mask) < 0) {
++		fprintf(stderr, "Failed to write SRK revoke fuse\n");
++		return -1;
++	}
++
++	return 0;
++
++} /* otp_srk_revoke_write */
+diff --git a/otp/otp_srk.h b/otp/otp_srk.h
+index 9e2b5a9f4931..bd69ff277728 100644
+--- a/otp/otp_srk.h
++++ b/otp/otp_srk.h
+@@ -15,5 +15,7 @@
+ 
+ ssize_t otp_srk_read(otpctx_t ctx, uint32_t *srk_hash, size_t sizeinwords);
+ int otp_srk_write(otpctx_t ctx, uint32_t *srk_hash, size_t sizeinwords);
++int otp_srk_revoke_read (otpctx_t ctx, uint8_t *srk_revoke);
++int otp_srk_revoke_write (otpctx_t ctx, uint8_t slot);
+ 
+ #endif /* otp_srk_h_included */

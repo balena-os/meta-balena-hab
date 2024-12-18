@@ -1,0 +1,123 @@
+#!/bin/sh
+
+# Copyright 2024 Balena Ltd.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+#
+# Script which prevents updating to a non-bootable system if secure boot is enabled
+#
+
+set -o errexit
+
+# shellcheck source=/dev/null
+. /usr/libexec/os-helpers-logging
+# shellcheck source=/dev/null
+. /usr/libexec/os-helpers-sb
+# shellcheck source=/dev/null
+. /usr/sbin/balena-config-vars
+
+DURING_UPDATE="${DURING_UPDATE:-0}"
+
+exit_with_msg() {
+    result=$?
+    exit ${result}
+}
+trap exit_with_msg EXIT
+
+# Only applicable in the new OS container
+if [ "${DURING_UPDATE}" != 1 ]; then
+    exit 0
+fi
+
+# Only applicable when in secure boot mode
+if ! is_secured; then
+    exit 0
+fi
+
+# Reads the source key SRK from a signed binary
+# This corresponds to the 0-3 slot index.
+extract_slot_index() {
+    _boot_artifact="${1}"
+    _tmpdir=$(mktemp -d)
+
+    cd "${_tmpdir}"
+    if ! command -v csf_parser > /dev/null; then
+        rm -rf "${_tmpdir}"
+        fail "CSF parser not found"
+    fi
+
+    _filetype=$(file --mime-type -b "${_boot_artifact}")
+    if [ "${_filetype}" = "application/gzip" ]; then
+        _n_artifact="${_tmpdir}/$(basename ${_boot_artifact})"
+        gunzip -c "${_boot_artifact}" > "${_n_artifact}"
+        _boot_artifact="${_n_artifact}"
+    fi
+    # Currently the u-boot fit image identified as data fails parsing
+    # with an unrecognized tag.
+    # For octet-stream type we skip failing on parsing error and rely on the
+    # existence of the parsed output to confirm signing.
+    if ! "$(command -v csf_parser)" -s "${_boot_artifact}" > /dev/null && [ "${_filetype}" != "application/octet-stream" ]; then
+        rm -rf "${_tmpdir}"
+        fail "No signature found in ${_boot_artifact}"
+    else
+        if [ -e "./output/parsed_output.txt" ]; then
+            _slot_index="$(grep "Source Key Index of SRK" "./output/parsed_output.txt" | awk '{print $4}')"
+        else
+            rm -rf "${_tmpdir}"
+            fail "No output found from CSF parser"
+        fi
+    fi
+    info "$(basename ${_boot_artifact}) signed with index ${_slot_index}"
+    rm -rf "${_tmpdir}"
+    echo "${_slot_index}"
+}
+
+# Check that the new OS artifacts are signed with the same key
+BOOT_ARTIFACTS=$(find /mnt/sysroot/inactive -type f -path "*/resin-boot/*dtb" -o -path "*/resin-boot/*flash_evk" -o -path "*/resin-boot/Image.gz")
+for boot_artifact in ${BOOT_ARTIFACTS}; do
+    slot_index=$(extract_slot_index "${boot_artifact}")
+    if [ -z "${slot_index}" ]; then
+        fail "No signed artifacts - aborting update"
+    fi
+    if [ -n "${prev_slot_index}" ]; then
+        if [ "${prev_slot_index}" != "${slot_index}" ]; then
+            fail "Multiple boot artifacts signed with different keys"
+        fi
+    else
+        prev_slot_index="${slot_index}"
+    fi
+done
+
+# Check that the key has not been revoked
+revoke_mask=$(imx-otp-tool show | grep "SRK revoke" | awk '{print $3}')
+if [ -n "${revoke_mask}" ]; then
+    if [ $((revoke_mask & (1 << slot_index))) -ne 0 ]; then
+        fail "Key used to sign boot artifacts has been revoked"
+    fi
+fi
+
+# Old keys are revoked by commit hooks after rollback-health has confirmed
+# the new OS is working.
+CURRENT_BOOTLOADER=$(find "${BALENA_NONENC_BOOT_MOUNTPOINT}" -name "*flash_evk")
+old_slot_index=$(extract_slot_index "${CURRENT_BOOTLOADER}")
+if [ "${old_slot_index}" != "${slot_index}" ]; then
+    REVOKE_FILE="/mnt/data/balenahup/revoke_index"
+    mkdir -p "$(dirname ${REVOKE_FILE})"
+    echo "REVOKE_INDEX=${old_slot_index}" > "${REVOKE_FILE}" && sync -f ${REVOKE_FILE}
+    warn "Key slot update - old key slot ${old_slot_index} will be revoked after rollback-health"
+else
+    info "Boot artifacts signed with the same key slot"
+fi
+
+exit 0
