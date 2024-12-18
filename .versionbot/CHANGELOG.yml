@@ -1,4 +1,74 @@
 - commits:
+    - subject: "README: update contents"
+      hash: e7ab3ef6730253caad2f84810eb77ada99a4bf2b
+      body: >
+        * Add `iot-gate-imx8plus` as a supported device type.
+
+        * Add disabling of JTAG interface on locking operation
+
+        * Explain how key revocation happens
+
+        * Add FAQs that explain how to check the device is locked and the
+        storage
+          is encrypted.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "hostapp-update-hooks: add hook to update non-encrypted boot directory"
+      hash: bd905877e65957b6dbf58adef809f9fd41a52f2f
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+      author: Alex Gonzalez
+    - subject: "hostapp-update-hooks: add update and rollback hooks"
+      hash: 755605192ccd8530ecd3ef2892bcc5054e973ba3
+      body: >
+        Add an update hook that checks the new OS images are signed and
+        bootable,
+
+        and a rollback health commit hook that revokes the old OS key if needed.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "hab: sanity check slot index"
+      hash: 2109e5451bfff462fc2549101ab6548ec5470201
+      body: |
+        The slot index corresponds to the SRK slot index (0 to 3).
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "imx-misc-tools: add revocation support"
+      hash: 47d00e084a43e134de218b5124354c4d90d97500
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "hab: allow key revocation in OCOTP"
+      hash: 2a640c19e3faea6b57be354ee36f9d70e9e5c8ec
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+  version: 0.0.6
+  title: ""
+  date: 2024-12-18T16:55:24.223Z
+- commits:
     - subject: "imx-otp-tool: add JTAG disabling"
       hash: af3452b35d868ca571e43ddf0b9158e93cbb27ba
       body: ""
