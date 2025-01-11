@@ -9,8 +9,8 @@ Signed-off-by: Alex Gonzalez <alexg@balena.io>
 ---
  cmd/booti.c |  5 +++--
  cmd/bootm.c | 17 ++++++++++-------
- cmd/bootz.c |  6 +++---
- 3 files changed, 16 insertions(+), 12 deletions(-)
+ cmd/bootz.c |  5 +++--
+ 3 files changed, 16 insertions(+), 11 deletions(-)
 
 diff --git a/cmd/booti.c b/cmd/booti.c
 index d7b5fb641201..cbfac0a76a1d 100644
@@ -71,19 +71,18 @@ index 93604453f97d..dcc3ae300aad 100644
  		break;
  #endif
 diff --git a/cmd/bootz.c b/cmd/bootz.c
-index 497fa81aff49..ac050fd21205 100644
+index 497fa81aff49..e8308b8914e0 100644
 --- a/cmd/bootz.c
 +++ b/cmd/bootz.c
-@@ -61,9 +61,9 @@ static int bootz_start(struct cmd_tbl *cmdtp, int flag, int argc,
+@@ -61,8 +61,9 @@ static int bootz_start(struct cmd_tbl *cmdtp, int flag, int argc,
  	extern int authenticate_image(
  			uint32_t ddr_start, uint32_t raw_image_size);
  	if (authenticate_image(images->ep, zi_end - zi_start) != 0) {
 -		printf("Authenticate zImage Fail, Please check\n");
 -		return 1;
--	}
 +		panic("Authenticate zImage Fail, bailing out\n");
 +	} else {
 +		printf("Authenticate zImage passed\n");
+ 	}
  #endif
  	return 0;
- }
