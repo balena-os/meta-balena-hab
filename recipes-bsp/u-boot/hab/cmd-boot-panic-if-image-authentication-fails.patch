@@ -1,0 +1,89 @@
+From: Alex Gonzalez <alexg@balena.io>
+Date: Sat, 11 Jan 2025 13:16:37 +0100
+Subject: [PATCH] cmd: boot: panic if image authentication fails
+
+This will reboot the device and allow for the implementation of rollbacks.
+It also reduces the attach surface.
+
+Signed-off-by: Alex Gonzalez <alexg@balena.io>
+---
+ cmd/booti.c |  5 +++--
+ cmd/bootm.c | 17 ++++++++++-------
+ cmd/bootz.c |  6 +++---
+ 3 files changed, 16 insertions(+), 12 deletions(-)
+
+diff --git a/cmd/booti.c b/cmd/booti.c
+index d7b5fb641201..cbfac0a76a1d 100644
+--- a/cmd/booti.c
++++ b/cmd/booti.c
+@@ -82,8 +82,9 @@ static int booti_start(struct cmd_tbl *cmdtp, int flag, int argc,
+ 	extern int authenticate_image(
+ 		uint32_t ddr_start, uint32_t raw_image_size);
+ 	if (authenticate_image(ld, image_size) != 0) {
+-		printf("Authenticate Image Fail, Please check\n");
+-		return 1;
++		panic("Authenticate Image Fail, bailing out\n");
++	} else {
++		printf("Authenticate image passed\n");
+ 	}
+ 
+ #endif
+diff --git a/cmd/bootm.c b/cmd/bootm.c
+index 93604453f97d..dcc3ae300aad 100644
+--- a/cmd/bootm.c
++++ b/cmd/bootm.c
+@@ -143,9 +143,10 @@ int do_bootm(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+ 	switch (genimg_get_format((const void *)tee_addr)) {
+ 	case IMAGE_FORMAT_LEGACY:
+ 		if (authenticate_image(tee_addr,
+-		       image_get_image_size((image_header_t *)tee_addr)) != 0) {
+-		       printf("Authenticate uImage Fail, Please check\n");
+-		       return 1;
++			image_get_image_size((image_header_t *)tee_addr)) != 0) {
++			panic("Authenticate uImage Fail, bailing out\n");
++		} else {
++			printf("Authenticate uImage passed\n");
+ 		}
+ 		break;
+ 	default:
+@@ -158,8 +159,9 @@ int do_bootm(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+ 		return 1;
+ 
+ 	if (authenticate_image(image_load_addr, zi_end - zi_start) != 0) {
+-		printf("Authenticate zImage Fail, Please check\n");
+-		return 1;
++		panic("Authenticate zImage Fail, bailing out\n");
++	} else {
++		printf("Authenticate zImage passed\n");
+ 	}
+ 
+ #else
+@@ -169,8 +171,9 @@ int do_bootm(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+ 	case IMAGE_FORMAT_LEGACY:
+ 		if (authenticate_image(image_load_addr,
+ 			image_get_image_size((image_header_t *)image_load_addr)) != 0) {
+-			printf("Authenticate uImage Fail, Please check\n");
+-			return 1;
++			panic("Authenticate uImage Fail, bailing out\n");
++		} else {
++			printf("Authenticate uImage passed\n");
+ 		}
+ 		break;
+ #endif
+diff --git a/cmd/bootz.c b/cmd/bootz.c
+index 497fa81aff49..ac050fd21205 100644
+--- a/cmd/bootz.c
++++ b/cmd/bootz.c
+@@ -61,9 +61,9 @@ static int bootz_start(struct cmd_tbl *cmdtp, int flag, int argc,
+ 	extern int authenticate_image(
+ 			uint32_t ddr_start, uint32_t raw_image_size);
+ 	if (authenticate_image(images->ep, zi_end - zi_start) != 0) {
+-		printf("Authenticate zImage Fail, Please check\n");
+-		return 1;
+-	}
++		panic("Authenticate zImage Fail, bailing out\n");
++	} else {
++		printf("Authenticate zImage passed\n");
+ #endif
+ 	return 0;
+ }
