@@ -31,7 +31,6 @@
 
 #define BALENA_ENV \
        "resin_env_file=" __stringify(BALENA_ENV_FILE) "\0" \
-       "balena_extra_env_file=" __stringify(BALENA_EXTRA_ENV_FILE) "\0" \
        "os_overlap_file=" __stringify(OS_OVERLAP_FILE) "\0" \
        "os_bc_file=" __stringify(OS_BOOTCOUNT_FILE) "\0" \
        "os_bc_skip=" __stringify(OS_BOOTCOUNT_SKIP) "\0" \
@@ -56,9 +55,6 @@
        "resin_load_env_file=" \
                "echo Loading ${resin_env_file} from ${resin_dev_type} device ${resin_dev_index} partition ${resin_boot_part};" \
                "fatload ${resin_dev_type} ${resin_dev_index}:${resin_boot_part} ${resin_kernel_load_addr} ${resin_env_file};\0" \
-       "balena_load_extra_env_file=" \
-               "echo Loading ${balena_extra_env_file} from ${resin_dev_type} device ${resin_dev_index} partition ${resin_boot_part};" \
-               "fatload ${resin_dev_type} ${resin_dev_index}:${resin_boot_part} ${resin_kernel_load_addr} ${balena_extra_env_file};\0" \
        "os_load_bootcount_file=" \
                "echo Loading ${os_bc_file} from ${resin_dev_type} device ${resin_dev_index} partition ${resin_boot_part};" \
                "fatload ${resin_dev_type} ${resin_dev_index}:${resin_boot_part} ${resin_kernel_load_addr} ${os_bc_file};\0" \
@@ -67,17 +63,6 @@
                "echo Import ${resin_env_file} in environment;" \
                "env import -t ${resin_kernel_load_addr} ${filesize}\0" \
        \
-       "balena_import_extra_env_file=" \
-               "echo Import ${balena_extra_env_file} in environment;" \
-               "env import -t ${resin_kernel_load_addr} ${filesize}\0" \
-       \
-       "balena_import_scan_dev_extra_env_file=" \
-               "if fatload ${resin_scan_dev_type} ${resin_scan_dev_index}:${resin_boot_part} ${resin_kernel_load_addr} ${balena_extra_env_file}; then " \
-                   "run balena_import_extra_env_file; " \
-                   "echo Imported ${balena_extra_env_file} from scanned device ${resin_scan_dev_type}:${resin_scan_dev_index} in environment;" \
-               "else " \
-                   "echo File ${balena_extra_env_file} not found on scanned device ${resin_scan_dev_type}:${resin_scan_dev_index}; " \
-               "fi; \0" \
        "balena_save_overlap_file=if fatwrite ${resin_dev_type} ${resin_dev_index}:${resin_boot_part} ${resin_kernel_load_addr} ${os_overlap_file} 0xd; then; else; echo OVERLAP FILE WRITE FAILED ; fi;\0" \
        "balena_kernel_load_crc_save=if balena_crc32 save ${balena_device_kernel_addr_var}; then; else run balena_save_overlap_file; fi;\0" \
        "balena_kernel_load_crc_check=if balena_crc32 check ${balena_device_kernel_addr_var}; then; else run balena_save_overlap_file; fi;\0" \
@@ -113,7 +98,6 @@
                "echo Scanning ${resin_uboot_device_types} devices ${resin_uboot_devices}; " \
                "for resin_scan_dev_type in ${resin_uboot_device_types}; do " \
                        "for resin_scan_dev_index in ${resin_uboot_devices}; do " \
-                               "run balena_import_scan_dev_extra_env_file; " \
                                "if test ${resin_flasher_skip} = 0 && run resin_flasher_detect; then " \
                                        "setenv resin_flasher_dev_index ${resin_scan_dev_index}; " \
                                        "setenv resin_dev_type ${resin_scan_dev_type}; " \

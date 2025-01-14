@@ -46,6 +46,7 @@ SRC_URI:append:mx8m-generic-bsp = " \
     file://security.cfg \
     file://mach-imx-hab-allow-to-specify-custom-IVT-offset-from.patch \
     file://image-fdt-introduce-HAB-authentication-for-device-tr.patch \
+    file://cmd-boot-panic-if-image-authentication-fails.patch \
 "
 
 do_configure:prepend:mx8m-generic-bsp () {
