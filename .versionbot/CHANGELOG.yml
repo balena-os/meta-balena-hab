@@ -1,4 +1,37 @@
 - commits:
+    - subject: "conf: samples: add configuration templates"
+      hash: d8b748a054609ce70884b33b291acf8a009052cd
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "u-boot: remove injection of extra environmental file"
+      hash: 03e984bcac4cc5f68f61417819e6828b252c73ce
+      body: |
+        This prevents using it to change the U-Boot environment.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "u-boot-compulab: panic if image authentication fails"
+      hash: 3a243c0728c09468f9d5b2aeec19c44fb05d0383
+      body: |
+        This reduces the attack surface and would allow for rollbacks.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+  version: 0.0.7
+  title: ""
+  date: 2025-01-14T18:07:19.293Z
+- commits:
     - subject: "README: update contents"
       hash: e7ab3ef6730253caad2f84810eb77ada99a4bf2b
       body: >
