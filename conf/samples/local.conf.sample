@@ -9,7 +9,7 @@ BALENA_STORAGE = "overlay2"
 #TARGET_TAG ?= ""
 
 # Set this to 1 to disable quiet boot and allow bootloader shell access
-#OS_DEVELOPMENT = "1"
+OS_DEVELOPMENT = "1"
 
 # Set this to make build system generate resinhup bundles
 #BALENAHUP ?= "yes"
