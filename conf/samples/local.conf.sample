@@ -69,3 +69,4 @@ ACCEPT_FSL_EULA = "1"
 
 SKIP_SECUREBOOT_SETUP = "1"
 IS_SECURED_CHECK_SKIP = "1"
+OS_KERNEL_SECUREBOOT_CMDLINE = "module.sig_enforce lockdown=integrity shell-debug"
