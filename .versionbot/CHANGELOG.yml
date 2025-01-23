@@ -1,4 +1,36 @@
 - commits:
+    - subject: "samples: iot-gate-imx8plus: add templates"
+      hash: 71e6ee9b0daf7bc320bfd7f79cbc1c9099ed7718
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "samples: iot-gate-imx8: add templates"
+      hash: 354932a21b7cc39433f594b8be7b81fbf30be11e
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+    - subject: "samples: remove single templates"
+      hash: e7ce9a23946b11b0227df562c4995e9b1c3f9648
+      body: |
+        Different device types require different templates files.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+  version: 0.0.8
+  title: ""
+  date: 2025-01-23T16:31:34.471Z
+- commits:
     - subject: "conf: samples: add configuration templates"
       hash: d8b748a054609ce70884b33b291acf8a009052cd
       body: ""
