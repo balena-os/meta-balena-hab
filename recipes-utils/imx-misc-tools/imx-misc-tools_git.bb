@@ -10,6 +10,7 @@ SRC_URI = " \
     file://Add-i.MX8MP-support.patch \
     file://imx-otp-tool-add-JTAG-disabling-to-secure-mode.patch \
     file://imx-otp-tool-add-revocation-command.patch \
+    file://imx-otp-tool-separate-SRK-programming-into-different.patch \
 "
 SRCREV = "401a93f3422012bbfada6fcc2a920ded2f73dc04"
 S = "${WORKDIR}/git"
