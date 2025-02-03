@@ -117,7 +117,7 @@
                "run resin_scan_devs; " \
                "if test -n \"${resin_flasher_dev_index}\"; then " \
                        "echo Found resin flasher on ${resin_dev_type} ${resin_flasher_dev_index}; "\
-                       "setenv bootparam_flasher flasher migrate; "\
+                       "hab_status; setenv bootparam_flasher flasher migrate hab_status=${hab_status}; "\
                        "setenv resin_dev_index ${resin_flasher_dev_index}; "\
                "else; "\
                        "if test -n \"${resin_image_dev_index}\"; then " \

@@ -1,0 +1,30 @@
+From: Alex Gonzalez <alexg@balena.io>
+Date: Mon, 3 Feb 2025 12:13:58 +0100
+Subject: [PATCH] hab: set hab status in environment
+
+This allows to pass the status to user space and helps when provisioning.
+
+Signed-off-by: Alex Gonzalez <alexg@balena.io>
+---
+ arch/arm/mach-imx/hab.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/arch/arm/mach-imx/hab.c b/arch/arm/mach-imx/hab.c
+index 36f1810826c2..3638c001126e 100644
+--- a/arch/arm/mach-imx/hab.c
++++ b/arch/arm/mach-imx/hab.c
+@@ -474,12 +474,14 @@ static int get_hab_status(void)
+ 			bytes = sizeof(event_data);
+ 			index++;
+ 		}
++		env_set("hab_status", "1");
+ 	}
+ 	/* Display message if no HAB events are found */
+ 	else {
+ 		printf("\nHAB Configuration: 0x%02x, HAB State: 0x%02x\n",
+ 		       config, state);
+ 		puts("No HAB Events Found!\n\n");
++		env_set("hab_status", "0");
+ 	}
+ 	return 0;
+ }
