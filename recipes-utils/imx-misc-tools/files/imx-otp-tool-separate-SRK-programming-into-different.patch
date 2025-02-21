@@ -1,0 +1,88 @@
+From: Alex Gonzalez <alexg@balena.io>
+Date: Mon, 3 Feb 2025 13:49:10 +0100
+Subject: [PATCH] imx-otp-tool: separate SRK programming into different command
+
+This allows to program the SRK e-fuses and check hab status before
+closing the device.
+
+Signed-off-by: Alex Gonzalez <alexg@balena.io>
+---
+ imx-otp-tool.c | 31 ++++++++++++++++++++++++++-----
+ 1 file changed, 26 insertions(+), 5 deletions(-)
+
+diff --git a/imx-otp-tool.c b/imx-otp-tool.c
+index dcfea1f1ceab..e6cf57d7a668 100644
+--- a/imx-otp-tool.c
++++ b/imx-otp-tool.c
+@@ -35,6 +35,7 @@ static int8_t slot = -1;
+ typedef int (*option_routine_t)(otpctx_t ctx, int argc, char * const argv[]);
+ static int do_check_secure(otpctx_t ctx, int argc, char * const argv[]);
+ static int do_secure(otpctx_t ctx, int argc, char * const argv[]);
++static int do_srks(otpctx_t ctx, int argc, char * const argv[]);
+ static int do_show(otpctx_t ctx, int argc, char * const argv[]);
+ static int do_revoke(otpctx_t ctx, int argc, char * const argv[]);
+ static char * bootcfg_get_jtag_smode(uint32_t * bootcfg, char * msg, size_t msglen);
+@@ -47,7 +48,8 @@ static struct {
+ 	const char *help;
+ } commands[] = {
+         { "is-secured", do_check_secure, "check fuses are set for secure boot" },
+-        { "secure",     do_secure,       "program fuses for secure boot" },
++        { "secure",     do_secure,       "program SRK fuses for secure boot and close device" },
++        { "srks",       do_srks,         "program SRK fuses for secure boot" },
+         { "show",       do_show,         "show fuses" },
+         { "revoke",     do_revoke,       "revoke key slot" },
+ };
+@@ -295,16 +297,14 @@ static int twobit_bootcfg_update(otpctx_t ctx, uint32_t * bootcfg, uint32_t offs
+ }
+ 
+ /*
+- * do_secure
++ * do_srks
+  */
+ static int
+-do_secure (otpctx_t ctx, int argc, char * const argv[])
++do_srks (otpctx_t ctx, int argc, char * const argv[])
+ {
+ 	uint32_t srk_hash[SRK_FUSE_COUNT];
+-	uint32_t bootcfg[OTP_BOOTCFG_WORD_COUNT];
+ 	uint32_t locks;
+ 	otp_lockstate_t lstate;
+-	bool val;
+ 	unsigned int i;
+ 
+ 	if (!have_srk_hash) {
+@@ -335,6 +335,7 @@ do_secure (otpctx_t ctx, int argc, char * const argv[])
+ 		if (!opt_quiet)
+ 			printf("Programmed SRK fuses.\n");
+ 	}
++
+ 	if (otp_locks_read(ctx, &locks) < 0) {
+ 		perror("otp_locks_read");
+ 		return 1;
+@@ -363,6 +364,26 @@ do_secure (otpctx_t ctx, int argc, char * const argv[])
+ 		fprintf(stderr, "ERR: unknown SRK lockstate: %u\n", lstate);
+ 		return 1;
+ 	}
++	return 0;
++
++} /* do_srks */
++
++/*
++ * do_secure
++ */
++static int
++do_secure (otpctx_t ctx, int argc, char * const argv[])
++{
++	uint32_t srk_hash[SRK_FUSE_COUNT];
++	uint32_t bootcfg[OTP_BOOTCFG_WORD_COUNT];
++	uint32_t locks;
++	otp_lockstate_t lstate;
++	bool val;
++	unsigned int i;
++
++	if (do_srks(ctx, argc, argv) != 0) {
++		return 1;
++	}
+ 
+ 	if (otp_bootcfg_read(ctx, bootcfg, OTP_BOOTCFG_WORD_COUNT) < 0) {
+ 		perror("otp_bootcfg_read");

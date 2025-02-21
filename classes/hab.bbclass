@@ -61,11 +61,15 @@ cst() {
     # Timeout is 1 minute plus 1 minute per MB
     _timeout=$(expr 60 +  $_size / 1024 / 1024 \* 60)
     echo "{\"pki_id\": \"${SIGN_IMX_PKI_ID}\", \"hab_type\": \"${SIGN_HAB_TYPE}\",\"payload\": \"$(base64 -w 0 ${_input_artifact})\", \"csf\": \"$(base64 -w 0 ${_csf_artifact})\" }" > "${REQUEST_FILE}"
-    if CURL_CA_BUNDLE="${STAGING_DIR_NATIVE}/etc/ssl/certs/ca-certificates.crt" curl --retry 5 --silent --show-error --max-time ${_timeout} "${SIGN_API}/imx/cst" -X POST -H "Content-Type: application/json" -H "X-API-Key: ${SIGN_API_KEY}" -d "@${REQUEST_FILE}" --output "${RESPONSE_FILE}"; then
-        jq -r ".csf_bin" < "${RESPONSE_FILE}" | base64 -d > "${_output_artifact}"
+    if _status_code=$(CURL_CA_BUNDLE="${STAGING_DIR_NATIVE}/etc/ssl/certs/ca-certificates.crt" curl --retry 5 --silent --show-error --max-time ${_timeout} -w "%{http_code}" "${SIGN_API}/imx/cst" -X POST -H "Content-Type: application/json" -H "X-API-Key: ${SIGN_API_KEY}" -d "@${REQUEST_FILE}" --output "${RESPONSE_FILE}"); then
+        case "${_status_code}" in
+            2*) jq -r ".csf_bin" < "${RESPONSE_FILE}" | base64 -d > "${_output_artifact}" ;;
+            *) bbfatal "Failed to sign ${_input_artifact} with error $? and status code ${_status_code}" ;;
+        esac
     else
         bbfatal "Failed to sign ${_input_artifact} with error $?"
     fi
+
     if [ ! -s "${_output_artifact}" ]; then
         bbfatal "Unspecified error - empty file"
     fi

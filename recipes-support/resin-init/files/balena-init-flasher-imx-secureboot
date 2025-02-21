@@ -20,6 +20,13 @@ if ! command -v split_bootpartition > /dev/null; then . /usr/libexec/os-helpers-
 
 BALENA_NONENC_BOOT_LABEL=@@BALENA_NONENC_BOOT_LABEL@@
 
+is_srk_programmed() {
+    if imx-otp-tool show | grep "SRK hashes:" | grep -q "non-null, locked"; then
+        return 0
+    fi
+    return 1
+}
+
 secureboot_setup() {
     if [ "$(jq .installer.secureboot "${CONFIG_PATH}")" = "true" ]; then
         if @@BALENA_SKIP_SECUREBOOT_SETUP@@; then
@@ -29,12 +36,37 @@ secureboot_setup() {
         if ! command -v imx-otp-tool > /dev/null; then
             fail "IMX OTP tool is required"
         fi
-        info "Programming OTP with ${EXTERNAL_DEVICE_BOOT_PART_MOUNTPOINT}/efuses.bin"
-        if imx-otp-tool -q --fuse-file "${EXTERNAL_DEVICE_BOOT_PART_MOUNTPOINT}/efuses.bin" secure; then
-            imx-otp-tool show
+        if is_secured; then
+            info "Device is already closed"
             return 0
+        fi
+        # If HAB complains, it could be u-boot needs to be programmed with the signed version
+        if ! cat /proc/cmdline | grep -q "hab_status=0"; then
+            # Note this happens on the eMMC boot partition
+            /usr/bin/resin-init-flasher-board
+            reboot -f
+        fi
+
+        if ! is_srk_programmed; then
+            # Program OTP SRK and reboot
+            info "Programming OTP with ${EXTERNAL_DEVICE_BOOT_PART_MOUNTPOINT}/efuses.bin"
+            if imx-otp-tool -q --fuse-file "${EXTERNAL_DEVICE_BOOT_PART_MOUNTPOINT}/efuses.bin" srks; then
+                imx-otp-tool show
+                reboot -f
+            fi
         else
-            fail "Failed to program OTP fuses"
+            # Check hab_status
+            if cat /proc/cmdline | grep -q "hab_status=0"; then
+                info "No HAB events reported - closing device."
+                if imx-otp-tool -q --fuse-file "${EXTERNAL_DEVICE_BOOT_PART_MOUNTPOINT}/efuses.bin" secure; then
+                    imx-otp-tool show
+                    reboot -f
+                else
+                    fail "Failed to program OTP fuses"
+                fi
+            else
+                fail "HAB events detected - refusing to close device"
+            fi
         fi
     elif is_secured; then
         fail "Device is locked - please opt-in secure boot mode in the installer configuration"
