@@ -1,4 +1,68 @@
 - commits:
+    - subject: Add repository configuration
+      hash: 5a62487491d6c8183f14567e4c6cb6c5ccb77f66
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+      nested: []
+    - subject: "classes: hab: fail on error"
+      hash: d37c1e4bd63048dae7b1df22dd64a9040887bcaf
+      body: |
+        The signing server errors were being silently ignored.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+      nested: []
+    - subject: "balena-init-flasher: check HAB status events before closing device"
+      hash: 9058760e8e75607ff5559e8f501db48ce67c3676
+      body: |
+        The new secure boot setup involves:
+
+        * Program SRK efuses and reboot
+        * Check there are no HAB events
+        * Then close the device and reboot so the new OTPMK keys take effect
+        * Then program and encrypt disks
+      footer:
+        Change-type: major
+        change-type: major
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+      nested: []
+    - subject: "imx-misc-tools: separate SRK efuses programming to different command"
+      hash: 078a159f73b0b2457e0bc9d56a373d510b3ebab9
+      body: |
+        This allows to program the SRK efuses, reboot, and check the HAB events
+        before closing the device.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+      nested: []
+    - subject: "u-boot: pass hab status to user space"
+      hash: 7723bc1c040c65a4f4916475c8b94c3ff1a5a3b7
+      body: |
+        This allows to check there are no HAB events before closing a device.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+      nested: []
+  version: 1.0.0
+  title: ""
+  date: 2025-02-27T19:45:02.266Z
+- commits:
     - subject: "samples: iot-gate-imx8plus: add templates"
       hash: 71e6ee9b0daf7bc320bfd7f79cbc1c9099ed7718
       body: ""
