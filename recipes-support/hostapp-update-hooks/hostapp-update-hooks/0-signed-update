@@ -57,8 +57,9 @@ extract_slot_index() {
         fail "CSF parser not found"
     fi
 
-    _filetype=$(file --mime-type -b "${_boot_artifact}")
-    if [ "${_filetype}" = "application/gzip" ]; then
+    GZIP_MAGIC="1f8b"
+    _filetype=$(xxd -p -l 2 "${_boot_artifact}")
+    if [ "${_filetype}" = "${GZIP_MAGIC}" ]; then
         _n_artifact="${_tmpdir}/$(basename ${_boot_artifact})"
         gunzip -c "${_boot_artifact}" > "${_n_artifact}"
         _boot_artifact="${_n_artifact}"
