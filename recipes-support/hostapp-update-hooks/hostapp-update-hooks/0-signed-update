@@ -57,17 +57,16 @@ extract_slot_index() {
         fail "CSF parser not found"
     fi
 
-    _filetype=$(file --mime-type -b "${_boot_artifact}")
-    if [ "${_filetype}" = "application/gzip" ]; then
+    GZIP_MAGIC="1f8b"
+    _filetype=$(xxd -p -l 2 "${_boot_artifact}")
+    if [ "${_filetype}" = "${GZIP_MAGIC}" ]; then
         _n_artifact="${_tmpdir}/$(basename ${_boot_artifact})"
         gunzip -c "${_boot_artifact}" > "${_n_artifact}"
         _boot_artifact="${_n_artifact}"
     fi
-    # Currently the u-boot fit image identified as data fails parsing
-    # with an unrecognized tag.
-    # For octet-stream type we skip failing on parsing error and rely on the
-    # existence of the parsed output to confirm signing.
-    if ! "$(command -v csf_parser)" -s "${_boot_artifact}" > /dev/null && [ "${_filetype}" != "application/octet-stream" ]; then
+    # Currently the u-boot fit image fails parsing with an unrecognized tag so
+    # we rely on the existence of the parsed output to confirm signing.
+    if ! "$(command -v csf_parser)" -s "${_boot_artifact}" > /dev/null && [ "${_boot_artifact}" != "${_boot_artifact#imx-boot-*flash_evk}" ]; then
         rm -rf "${_tmpdir}"
         fail "No signature found in ${_boot_artifact}"
     else
