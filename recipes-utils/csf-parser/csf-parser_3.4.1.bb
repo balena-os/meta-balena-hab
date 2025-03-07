@@ -13,7 +13,7 @@ S = "${WORKDIR}/git"
 do_untar() {
     tar --strip-component=1 -C ${S} -xvf ${S}/cst-${PV}.tgz
 }
-addtask untar after do_unpack before do_populate_lic
+addtask untar after do_unpack before do_patch
 
 EXTRA_OEMAKE = 'CC="${CC}" LD="${CC}" AR="${AR}" OBJCOPY="${OBJCOPY}"'
 
