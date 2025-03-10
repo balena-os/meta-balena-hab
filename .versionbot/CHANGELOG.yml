@@ -1,4 +1,31 @@
 - commits:
+    - subject: "csf_parser: re-order untar after patch"
+      hash: 18539902be7ecc09389165cccd3b8acfd25271ae
+      body: |
+        When running populate_lic from setscene, untar is skipped.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+      nested: []
+    - subject: "hostapp-update-hooks: replace use of file by magic header"
+      hash: 2d8b33b5ab9f4dd773cdaaed07689cf6a91d299b
+      body: |
+        No need to increase the rootfs space with the file utility if we can
+        deduce the filetype looking at the header magic.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+      nested: []
+  version: 1.0.1
+  title: ""
+  date: 2025-03-10T14:19:11.758Z
+- commits:
     - subject: Add repository configuration
       hash: 5a62487491d6c8183f14567e4c6cb6c5ccb77f66
       body: ""
