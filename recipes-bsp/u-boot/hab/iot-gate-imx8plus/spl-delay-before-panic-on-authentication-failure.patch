@@ -1,0 +1,37 @@
+From df0046e30146268fe184230fb06bf46aa2d6314c Mon Sep 17 00:00:00 2001
+From: Alex Gonzalez <alexg@balena.io>
+Date: Sun, 27 Apr 2025 16:36:21 +0200
+Subject: [PATCH] spl: delay before panic on authentication failure
+
+This gives time for the ethernet interface to come up so that it can be
+monitored as a signal the device has boot up.
+
+This is used in bootloader integrity tests.
+
+Signed-off-by: Alex Gonzalez <alexg@balena.io>
+---
+ arch/arm/mach-imx/spl.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/arch/arm/mach-imx/spl.c b/arch/arm/mach-imx/spl.c
+index 9ca152a943e2..c6438f5ded44 100644
+--- a/arch/arm/mach-imx/spl.c
++++ b/arch/arm/mach-imx/spl.c
+@@ -20,6 +20,7 @@
+ #include <asm/mach-imx/boot_mode.h>
+ #include <g_dnl.h>
+ #include <linux/libfdt.h>
++#include <linux/delay.h>
+ #include <mmc.h>
+ 
+ DECLARE_GLOBAL_DATA_PTR;
+@@ -326,6 +327,9 @@ void board_spl_fit_post_load(const void *fit)
+ 	if (imx_hab_authenticate_image((uintptr_t)fit,
+ 				       offset + IVT_SIZE + CSF_PAD_SIZE,
+ 				       offset)) {
++		/* Give time for ethernet to come up before panic */
++		/* to signal device has booted and use it in tests  */
++		mdelay(3000);
+ 		panic("spl: ERROR:  image authentication unsuccessful\n");
+ 	}
+ }
