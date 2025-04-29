@@ -1,4 +1,33 @@
 - commits:
+    - subject: "u-boot-compulab: iot-gate-imx8plus: delay before panic on auth failure"
+      hash: 3440bbab549a587358edaa2db0cf6905928441e4
+      body: >
+        Allow for the ethernet link to come up after image authentication
+        failure
+
+        so that the bootloader integrity test can detect the device boot.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+      nested: []
+    - subject: "u-boot-compulab: apply common patches before device specific"
+      hash: da1f70350cd4e7d906406fcc1ae1dde7f9149f46
+      body: |
+        This allows to modify last the device specific changes.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+      nested: []
+  version: 1.0.2
+  title: ""
+  date: 2025-04-29T09:31:09.141Z
+- commits:
     - subject: "csf_parser: re-order untar after patch"
       hash: 18539902be7ecc09389165cccd3b8acfd25271ae
       body: |
