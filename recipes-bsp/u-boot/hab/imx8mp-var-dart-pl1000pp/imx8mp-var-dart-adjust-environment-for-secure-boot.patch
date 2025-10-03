@@ -1,0 +1,44 @@
+From: Alex Gonzalez <alexg@balena.io>
+Date: Fri, 3 Oct 2025 20:49:52 +0200
+Subject: [PATCH] imx8mp-var-dart: adjust environment for secure boot
+
+* Extend the maximum kernel bundle size to 124M
+
+The current difference between the kernel load address and the FDT load
+address is roughly 75M, which limits the size of the usable initramfs
+when bundled with the kernel.
+
+* Add placeholders for both kernel and device tree IVT offsets
+
+Signed-off-by: Alex Gonzalez <alexg@balena.io>
+---
+ include/configs/imx8mp_var_dart.h | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/include/configs/imx8mp_var_dart.h b/include/configs/imx8mp_var_dart.h
+index ec373f49131b..301ae0c61e99 100644
+--- a/include/configs/imx8mp_var_dart.h
++++ b/include/configs/imx8mp_var_dart.h
+@@ -82,10 +82,10 @@
+ 	"kernel_addr_r=" __stringify(CONFIG_SYS_LOAD_ADDR) "\0" \
+ 	"bsp_script=boot.scr\0" \
+ 	"image=Image.gz\0" \
+-	"img_addr=0x48440000\0" \
++	"img_addr=0x70000000\0" \
+ 	"splashimage=0x50000000\0" \
+-	"fdt_addr_r=0x45000000\0" \
+-	"fdt_addr=0x45000000\0"			\
++	"fdt_addr_r=0x48480000\0" \
++	"fdt_addr=0x48480000\0"			\
+ 	"fdt_high=0xffffffffffffffff\0"		\
+ 	"boot_fdt=try\0" \
+ 	"boot_fit=no\0" \
+@@ -114,6 +114,8 @@
+ 		"fi; " \
+ 		"bootaux ${m7_addr};\0" \
+ 	"optargs=setenv bootargs ${bootargs} ${kernelargs};\0" \
++	"ivt_offset="__stringify(KERNEL_SIGN_IVT_OFFSET)"\0" \
++	"dtb_ivt_offset="__stringify(DTB_SIGN_IVT_OFFSET)"\0" \
+ 	"mmcargs=setenv bootargs ${mcore_clk} " \
+ 		"${resin_kernel_root} ${os_cmdline} rootwait rw ${cma_size} cma_name=linux,cma "__stringify(BALENA_STAGE2)" \0 " \
+ 	"loadbootscript=load mmc ${mmcdev}:${mmcpart} ${loadaddr} ${bsp_script};\0" \

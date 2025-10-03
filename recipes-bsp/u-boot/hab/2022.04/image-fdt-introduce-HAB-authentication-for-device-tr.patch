@@ -1,0 +1,53 @@
+From: Alex Gonzalez <alexg@balena.io>
+Date: Mon, 30 Sep 2024 17:35:36 +0200
+Subject: [PATCH] image-fdt: introduce HAB authentication for device trees
+
+Signed-off-by: Alex Gonzalez <alexg@balena.io>
+---
+ arch/arm/mach-imx/hab.c | 15 +++++++++++++++
+ boot/image-fdt.c        |  9 +++++++++
+ 2 files changed, 24 insertions(+)
+
+diff --git a/arch/arm/mach-imx/hab.c b/arch/arm/mach-imx/hab.c
+index f557b2c84e28..ea3f92064079 100644
+--- a/arch/arm/mach-imx/hab.c
++++ b/arch/arm/mach-imx/hab.c
+@@ -1015,3 +1015,18 @@ int authenticate_image(u32 ddr_start, u32 raw_image_size)
+ 
+ 	return imx_hab_authenticate_image(ddr_start, bytes, ivt_offset);
+ }
++
++int authenticate_dtb(uint32_t ddr_start, uint32_t raw_image_size)
++{
++	uint32_t dtb_ivt_offset;
++	size_t bytes;
++
++
++	dtb_ivt_offset = env_get_hex("dtb_ivt_offset", 0);
++	if ( !dtb_ivt_offset )
++		dtb_ivt_offset = (raw_image_size + ALIGN_SIZE - 1) &
++					~(ALIGN_SIZE - 1);
++	bytes = dtb_ivt_offset + IVT_SIZE + CSF_PAD_SIZE;
++
++	return imx_hab_authenticate_image(ddr_start, bytes, dtb_ivt_offset);
++}
+diff --git a/boot/image-fdt.c b/boot/image-fdt.c
+index e86218d79037..1280c0ec1a87 100644
+--- a/boot/image-fdt.c
++++ b/boot/image-fdt.c
+@@ -542,6 +542,15 @@ int boot_get_fdt(int flag, int argc, char *const argv[], uint8_t arch,
+ 	debug("   of_flat_tree at 0x%08lx size 0x%08lx\n",
+ 	      (ulong)*of_flat_tree, *of_size);
+ 
++#if defined(CONFIG_IMX_HAB)
++	extern int authenticate_dtb(uint32_t ddr_start, uint32_t raw_image_size);
++	if (authenticate_dtb((uintptr_t)fdt_blob, *of_size) != 0) {
++		panic("Authenticate dtb failure, bailing out\n");
++	} else {
++		printf("DTB authentication passed\n");
++	}
++#endif
++
+ 	return 0;
+ 
+ no_fdt:

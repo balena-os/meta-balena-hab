@@ -1,0 +1,31 @@
+From: Alex Gonzalez <alexg@balena.io>
+Date: Thu, 7 Nov 2024 16:03:36 +0100
+Subject: [PATCH] mach-imx: dt_optee: bail out if optee nodes exists
+
+On this version of U-boot, optee nodes are also created
+from image_setup_libfdt().
+
+This commit fixes the mach-imx code to bail out if the node
+already exists but still applying it if not, in case there
+is another code path that needs this.
+
+Signed-off-by: Alex Gonzalez <alexg@balena.io>
+---
+ arch/arm/mach-imx/dt_optee.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm/mach-imx/dt_optee.c b/arch/arm/mach-imx/dt_optee.c
+index 457949443738..939f2fff0b4d 100644
+--- a/arch/arm/mach-imx/dt_optee.c
++++ b/arch/arm/mach-imx/dt_optee.c
+@@ -69,7 +69,9 @@ int ft_add_optee_node(void *fdt, struct bd_info *bd)
+ 		subpath = "optee";
+ 		offs = fdt_add_subnode(fdt, offs, subpath);
+ 		if (offs < 0) {
+-			printf("Could not create %s node.\n", subpath);
++			if (offs == -FDT_ERR_EXISTS)
++				return 0;
++			printf("Could not create %s node, offs 0x%08x.\n", subpath, offs);
+ 			return -1;
+ 		}
+ 
