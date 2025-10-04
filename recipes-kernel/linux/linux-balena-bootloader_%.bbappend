@@ -1,6 +1,6 @@
 inherit hab
 
-require linux-compulab-common.inc
+require linux-common.inc
 
 python do_sign_dtb() {
     dtb_path = os.path.join(d.getVar('B', True), "arch", d.getVar('ARCH', True), "boot", "dts")
