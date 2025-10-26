@@ -1,6 +1,6 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
-INTERNAL_DEVICE_KERNEL = "mmcblk?"
+INTERNAL_DEVICE_KERNEL ?= "mmcblk?"
 
 SRC_URI:append = " \
     file://balena-init-flasher-imx-secureboot \
