@@ -21,6 +21,7 @@ do_install:append() {
 	if [ "${BALENA_IS_SECURED_CHECK_SKIP}" != "0" ]; then
 		bbwarn "IS_SECURED_CHECK_SKIP set - do not use in production"
 		sed -i -e "s,@@IS_SECURED_CHECK_SKIP@@,true,g" ${D}${libexecdir}/os-helpers-sb
+	else
+		sed -i -e "s,@@IS_SECURED_CHECK_SKIP@@,false,g" ${D}${libexecdir}/os-helpers-sb
 	fi
-	sed -i -e "s,@@IS_SECURED_CHECK_SKIP@@,false,g" ${D}${libexecdir}/os-helpers-sb
 }
