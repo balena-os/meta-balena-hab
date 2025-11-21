@@ -1,4 +1,111 @@
 - commits:
+    - subject: "os-helpers-sb: u-boot name customization for encrypted partition split"
+      hash: 217c8e74b5f22cb9365e32677d0361524d8c11aa
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+      nested: []
+    - subject: "resin-init-flasher: allow integration layers to specify flashing target"
+      hash: 04cbaade4b28a48182a2767a031e161e39480549
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+      nested: []
+    - subject: "os-helpers: fix ignored IS_SECURED_CHECK_SKIP configuration"
+      hash: e452593dfe7785b8bc62e5275105e9aa7fc2513e
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+      nested: []
+    - subject: "linux: add caam configuration dependency"
+      hash: 511745bcd387dbbb19e331fc7ac561585cc592df
+      body: |
+        Some BSPs do not define the required dependencies for a built-in
+        DM_CRYPT.
+
+        Force to built-in TRUSTED_KEYS as if it is set as module it will force
+        DM_CRYPT to become a module.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+      nested: []
+    - subject: "linux: rename linux-compulab-common to linux-common"
+      hash: 6ed3de070b6cacc74a8315d7fac4532d22c54f0f
+      body: |
+        This is shared secure boot configuration for all linux kernels.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+      nested: []
+    - subject: "imx-mkimage: imx-boot: make sure device trees are available"
+      hash: 34dacc9d6cd5fb0e28629ccadbb32db6f7f7b13b
+      body: |
+        A previous step in the do_compile() removes the device trees from
+        staging. The HAB layer runs a compilation again to be able to use the
+        log files in the signing process, so we make sure the device trees are
+        available for the compilation.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+      nested: []
+    - subject: "u-boot-variscite: add recipe append"
+      hash: 84ba8be3782533fcc16ce70075cb2ce1e1850f81
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+      nested: []
+    - subject: "u-boot: move generic patches to version specific folders"
+      hash: 8e63f2955006d0d42e8663ef244934bc09693699
+      body: |
+        Generic patches do not apply to all U-Boot versions so move them to
+        version specific directories.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+      nested: []
+    - subject: "u-boot-compulab: move patches to version specific directories"
+      hash: 93d57995f309c31164d634bc50048442c68e459a
+      body: |
+        These patches need modification for other U-boot versions.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+      nested: []
+  version: 1.0.3
+  title: ""
+  date: 2025-11-21T13:40:57.351Z
+- commits:
     - subject: "u-boot-compulab: iot-gate-imx8plus: delay before panic on auth failure"
       hash: 3440bbab549a587358edaa2db0cf6905928441e4
       body: >
