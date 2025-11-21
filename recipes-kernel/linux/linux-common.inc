@@ -22,3 +22,7 @@ BALENA_CONFIGS[caam] = " \
     CONFIG_CRYPTO_DEV_FSL_CAAM_JR=y \
     CONFIG_CRYPTO_DEV_FSL_CAAM_INTC=y \
 "
+
+KERNEL_DEVICETREE:imx8mp-var-dart-pl1000pp = " \
+    freescale/imx8mp-var-dart-ae-pl1kpp-1.0.dtb \
+"
