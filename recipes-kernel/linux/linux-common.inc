@@ -1,4 +1,4 @@
-FILESEXTRAPATHS:prepend := "${THISDIR}/linux-compulab:"
+FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
 SRC_URI:append = " \
     file://crypto-engine-fix-crypto_queue-backlog-handling.patch \
@@ -10,6 +10,7 @@ BALENA_CONFIGS[caam] = " \
     CONFIG_BLK_DEV_DM=y \
     CONFIG_BLK_DEV_MD=y \
     CONFIG_MD=y \
+    CONFIG_TRUSTED_KEYS=y \
     CONFIG_ENCRYPTED_KEYS=y \
     CONFIG_DM_CRYPT=y \
     CONFIG_CRYPTO_USER_API=y \

@@ -1,4 +1,4 @@
-FILESEXTRAPATHS:prepend := "${THISDIR}/hab:${THISDIR}/hab/${PV}"
+FILESEXTRAPATHS:prepend := "${THISDIR}/hab:${THISDIR}/hab/${PV}:"
 
 do_generate_resin_uboot_configuration:prepend() {
     d.appendVar('UBOOT_VARS', ' KERNEL_SIGN_IVT_OFFSET DTB_SIGN_IVT_OFFSET')
@@ -33,26 +33,21 @@ do_generate_resin_uboot_configuration[depends] += " \
 SRC_URI:append:mx8m-generic-bsp = " \
     file://security.cfg \
     file://mach-imx-hab-allow-to-specify-custom-IVT-offset-from.patch \
-    file://image-fdt-introduce-HAB-authentication-for-device-tr.patch \
-    file://cmd-boot-panic-if-image-authentication-fails.patch \
     file://hab-set-hab-status-in-environment.patch \
-"
-
-SRC_URI:append:iot-gate-imx8 = " \
-    file://iot-gate-imx8-extend-the-load-address-for-FDT-files.patch \
-    file://iot-gate-imx8-add-placeholder-for-IVT-offset-to-envi.patch \
-    file://iot-gate-imx8-add-placeholder-for-DTB-IVT-offset-to-.patch \
-"
-
-SRC_URI:append:iot-gate-imx8plus = " \
-    file://compulab-imx8m-plus-adjust-environment-for-secure-bo.patch \
-    file://u-boot-compulab-iot-gate-imx8plus-configure-for-secu.patch \
+    file://cmd-boot-panic-if-image-authentication-fails.patch \
+    file://image-fdt-introduce-HAB-authentication-for-device-tr.patch \
     file://mach-imx-dt_optee-bail-out-if-optee-nodes-exists.patch \
     file://spl-delay-before-panic-on-authentication-failure.patch \
 "
 
+SRC_URI:append:imx8mp-var-dart-pl1000pp = " \
+    file://imx8mp-var-dart-adjust-environment-for-secure-boot.patch \
+"
+
 do_configure:prepend:mx8m-generic-bsp () {
-    cat ${WORKDIR}/security.cfg >> ${S}/configs/${MACHINE}_defconfig
+    for machine in ${UBOOT_MACHINE}; do
+        cat ${WORKDIR}/security.cfg >> ${S}/configs/${machine}_defconfig
+    done
 }
 
 # For KERNEL_SIGN_IVT_OFFSET and DTB_SIGN_IVT_OFFSET

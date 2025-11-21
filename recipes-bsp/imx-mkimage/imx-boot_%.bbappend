@@ -11,6 +11,9 @@ python __anonymous () {
 
 do_compile:append() {
     for target in flash_evk print_fit_hab; do
+        if [ ! -f "${BOOT_STAGING}/${UBOOT_DTB_NAME}" ]; then
+            cp ${DEPLOY_DIR_IMAGE}/${BOOT_TOOLS}/${UBOOT_DTB_NAME} ${BOOT_STAGING}
+        fi
         bbnote "building ${IMX_BOOT_SOC_TARGET} - ${target}"
         make SOC=${IMX_BOOT_SOC_TARGET} dtbs=${UBOOT_DTB_NAME} ${target} 2>&1 | tee ${target}.log
         install "${B}/${target}.log" "${BOOT_STAGING}/"
