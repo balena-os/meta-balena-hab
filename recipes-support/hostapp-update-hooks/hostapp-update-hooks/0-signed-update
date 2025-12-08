@@ -66,7 +66,7 @@ extract_slot_index() {
     fi
     # Currently the u-boot fit image fails parsing with an unrecognized tag so
     # we rely on the existence of the parsed output to confirm signing.
-    if ! "$(command -v csf_parser)" -s "${_boot_artifact}" > /dev/null && [ "${_boot_artifact}" != "${_boot_artifact#imx-boot-*flash_evk}" ]; then
+    if ! "$(command -v csf_parser)" -s "${_boot_artifact}" > /dev/null && [ "${_boot_artifact}" != "${_boot_artifact#imx-boot*}" ]; then
         rm -rf "${_tmpdir}"
         fail "No signature found in ${_boot_artifact}"
     else
@@ -83,7 +83,7 @@ extract_slot_index() {
 }
 
 # Check that the new OS artifacts are signed with the same key
-BOOT_ARTIFACTS=$(find /mnt/sysroot/inactive -type f -path "*/resin-boot/*dtb" -o -path "*/resin-boot/*flash_evk" -o -path "*/resin-boot/Image.gz")
+BOOT_ARTIFACTS=$(find /mnt/sysroot/inactive -type f -path "*/resin-boot/*dtb" -o -path "*/resin-boot/imx-boot*" -o -path "*/resin-boot/Image.gz")
 for boot_artifact in ${BOOT_ARTIFACTS}; do
     slot_index=$(extract_slot_index "${boot_artifact}")
     if [ -z "${slot_index}" ]; then
@@ -108,7 +108,7 @@ fi
 
 # Old keys are revoked by commit hooks after rollback-health has confirmed
 # the new OS is working.
-CURRENT_BOOTLOADER=$(find "${BALENA_NONENC_BOOT_MOUNTPOINT}" -name "*flash_evk")
+CURRENT_BOOTLOADER=$(find "${BALENA_NONENC_BOOT_MOUNTPOINT}" -name "imx-boot*")
 old_slot_index=$(extract_slot_index "${CURRENT_BOOTLOADER}")
 if [ "${old_slot_index}" != "${slot_index}" ]; then
     REVOKE_FILE="/mnt/data/balenahup/revoke_index"
