@@ -1,4 +1,4 @@
-FILESEXTRAPATHS:prepend := "${THISDIR}/hab:${THISDIR}/hab/${PV}"
+FILESEXTRAPATHS:prepend := "${THISDIR}/hab:${THISDIR}/hab/${PV}:"
 
 do_generate_resin_uboot_configuration:prepend() {
     d.appendVar('UBOOT_VARS', ' KERNEL_SIGN_IVT_OFFSET DTB_SIGN_IVT_OFFSET')
