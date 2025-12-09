@@ -1,4 +1,30 @@
 - commits:
+    - subject: "u-boot-compulab: fix extra files append path"
+      hash: b37d77f9cce7d0939509ee835a28accff54aee05
+      body: ""
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+      nested: []
+    - subject: "hostapp-update-hooks: generalize u-boot names matching"
+      hash: c0f025ee9ccea121e8d750b68e855780e65885d0
+      body: |
+        Not all BSPs use the flash_evk suffix, but they may use the imx-boot
+        prefix.
+      footer:
+        Change-type: patch
+        change-type: patch
+        Signed-off-by: Alex Gonzalez <alexg@balena.io>
+        signed-off-by: Alex Gonzalez <alexg@balena.io>
+      author: Alex Gonzalez
+      nested: []
+  version: 1.0.4
+  title: ""
+  date: 2025-12-09T09:56:22.356Z
+- commits:
     - subject: "os-helpers-sb: u-boot name customization for encrypted partition split"
       hash: 217c8e74b5f22cb9365e32677d0361524d8c11aa
       body: ""
