@@ -1,0 +1,26 @@
+From: Alex Gonzalez <alexg@balena.io>
+Date: Thu, 15 Aug 2024 18:33:47 +0200
+Subject: [PATCH] iot-gate-imx8: add placeholder for IVT offset to environment
+
+Upstream-status: Inappropriate [configuration]
+
+Rebased for u-boot-compulab 2023.04, where the environment moved from
+include/configs/iot-gate-imx8.h to include/configs/cpl-imx8m-mini.h.
+
+Signed-off-by: Alex Gonzalez <alexg@balena.io>
+---
+ include/configs/cpl-imx8m-mini.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/include/configs/cpl-imx8m-mini.h b/include/configs/cpl-imx8m-mini.h
+index fb0d8ab55f16..5ffcffe120d8 100644
+--- a/include/configs/cpl-imx8m-mini.h
++++ b/include/configs/cpl-imx8m-mini.h
+@@ -113,6 +113,7 @@
+ 	"initrd_high=0xffffffffffffffff\0" \
+ 	"mmcautodetect=yes\0" \
+ 	"root_opt=rootwait rw\0" \
++	"ivt_offset="__stringify(KERNEL_SIGN_IVT_OFFSET)"\0" \
+ 	"bootargs_common="__stringify(ENV_CONSOLE)" net.ifnames=0 "__stringify(BALENA_STAGE2)" \0" \
+ 	"emmc_ul=setenv iface mmc; setenv dev 2; setenv part 1;" \
+ 	"setenv bootargs ${bootargs_common} ${resin_kernel_root} ${root_opt} ${os_cmdline};\0" \

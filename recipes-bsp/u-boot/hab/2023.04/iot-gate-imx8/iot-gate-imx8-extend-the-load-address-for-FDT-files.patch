@@ -1,0 +1,31 @@
+From: Alex Gonzalez <alexg@balena.io>
+Date: Thu, 15 Aug 2024 16:13:03 +0200
+Subject: [PATCH] iot-gate-imx8: extend the load address for FDT files
+
+The current difference between the kernel load address and the FDT load
+address is roughly 62M, which limits the size of the usable initramfs
+when bundled with the kernel.
+
+This commits extends the allowed size to 128M.
+
+Rebased for u-boot-compulab 2023.04, where fdt_addr moved from
+include/configs/iot-gate-imx8.h to include/configs/cpl-imx8m-mini.h.
+
+Signed-off-by: Alex Gonzalez <alexg@balena.io>
+---
+ include/configs/cpl-imx8m-mini.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/include/configs/cpl-imx8m-mini.h b/include/configs/cpl-imx8m-mini.h
+index 1b635fd6812..82d0e586086 100644
+--- a/include/configs/cpl-imx8m-mini.h
++++ b/include/configs/cpl-imx8m-mini.h
+@@ -105,7 +105,7 @@
+ 	"image=Image.gz\0" \
+ 	"zip_addr=0x70480000\0" \
+ 	"console=ttymxc2,115200 earlycon=ec_imx6q,0x30880000,115200\0" \
+-	"fdt_addr=0x44360000\0"	\
++	"fdt_addr=0x48480000\0"	\
+ 	"fdt_high=0xffffffffffffffff\0"		\
+ 	"boot_fdt=yes\0" \
+ 	"fdt_file="CONFIG_DEFAULT_FDT_FILE"\0" \
