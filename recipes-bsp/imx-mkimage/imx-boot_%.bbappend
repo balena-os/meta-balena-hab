@@ -33,8 +33,9 @@ do_sign_hab() {
     fi
 
     _payload=%%BIN_PATH%%
-    # Extract load address, offset and length from mkimage log file
-    eval $(awk  -F":" '(/hab block/)&&(gsub(/ /,"_",$1))&&($0=$1"=\""$2"\"")' ${BOOT_STAGING}/flash_evk.log)
+    # Extract load address, offset and length from mkimage log file, the
+    # fit-fdt lines are skipped as their names are not valid shell variables
+    eval $(awk  -F":" '(/hab block/)&&($1 !~ /-/)&&(gsub(/ /,"_",$1))&&($0=$1"=\""$2"\"")' ${BOOT_STAGING}/flash_evk.log)
     # Append the image binary path
     _spl_hab_block="${_spl_hab_block} \"${_payload}\""
     _sld_hab_block="${_sld_hab_block} \"${_payload}\""
@@ -57,7 +58,7 @@ do_sign_hab() {
     echo "$_spl_hab_block" >> ${WORKDIR}/csf_spl
 
     # Extract offsets from mkimage log file
-    eval $(awk '(/csf_off|sld_csf_off/)&&($0=$1"="$2)' ${BOOT_STAGING}/flash_evk.log)
+    eval $(awk '(/csf_off|sld_csf_off/)&&($1 !~ /-/)&&($0=$1"="$2)' ${BOOT_STAGING}/flash_evk.log)
     bbnote "csf_off=${csf_off} sld_csf_off=${sld_csf_off}"
 
     for SIGNING_ARTIFACT in ${SIGNING_ARTIFACTS}; do
