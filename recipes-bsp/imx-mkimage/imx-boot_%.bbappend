@@ -1,8 +1,12 @@
 inherit hab
 
 python __anonymous () {
+    # meta-imx's imx-boot defines the name of the image files, the
+    # meta-freescale one it replaces is parsed as well but is never built
+    boot_config_machine = d.getVar('BOOT_CONFIG_MACHINE', True)
+    if not boot_config_machine:
+        return
     sign_artifact_names = []
-    boot_config_machine = "-".join([d.getVar('BOOT_NAME', True), d.getVar('MACHINE', True), d.getVar('UBOOT_CONFIG', True)]) + ".bin"
     imxboot_targets = d.getVar('IMXBOOT_TARGETS', True)
     for target in imxboot_targets.split():
         sign_artifact_names.append(f"{boot_config_machine}-{target}")
@@ -15,12 +19,15 @@ do_compile:append() {
             cp ${DEPLOY_DIR_IMAGE}/${BOOT_TOOLS}/${UBOOT_DTB_NAME} ${BOOT_STAGING}
         fi
         bbnote "building ${IMX_BOOT_SOC_TARGET} - ${target}"
-        make SOC=${IMX_BOOT_SOC_TARGET} dtbs=${UBOOT_DTB_NAME} ${target} 2>&1 | tee ${target}.log
+        make SOC=${IMX_BOOT_SOC_TARGET} ${REV_OPTION} ${MKIMAGE_EXTRA_ARGS} dtbs=${UBOOT_DTB_NAME} ${target} 2>&1 | tee ${target}.log
         install "${B}/${target}.log" "${BOOT_STAGING}/"
     done
 }
 
 do_sign_hab() {
+    if [ -z "${SIGNING_ARTIFACTS}" ]; then
+        bbfatal "No artifacts to sign, BOOT_CONFIG_MACHINE is not defined by the imx-boot recipe"
+    fi
     if [ ! -f "${BOOT_STAGING}/flash_evk.log" ] || [ ! -f "${BOOT_STAGING}/print_fit_hab.log" ]; then
         bbfatal "mkimage output files not available in ${BOOT_STAGING} directory"
     fi
