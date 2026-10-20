@@ -1,8 +1,12 @@
 inherit hab
 
 python __anonymous () {
+    # meta-imx's imx-boot defines the name of the image files, the
+    # meta-freescale one it replaces is parsed as well but is never built
+    boot_config_machine = d.getVar('BOOT_CONFIG_MACHINE', True)
+    if not boot_config_machine:
+        return
     sign_artifact_names = []
-    boot_config_machine = "-".join([d.getVar('BOOT_NAME', True), d.getVar('MACHINE', True), d.getVar('UBOOT_CONFIG', True)]) + ".bin"
     imxboot_targets = d.getVar('IMXBOOT_TARGETS', True)
     for target in imxboot_targets.split():
         sign_artifact_names.append(f"{boot_config_machine}-{target}")
@@ -15,19 +19,23 @@ do_compile:append() {
             cp ${DEPLOY_DIR_IMAGE}/${BOOT_TOOLS}/${UBOOT_DTB_NAME} ${BOOT_STAGING}
         fi
         bbnote "building ${IMX_BOOT_SOC_TARGET} - ${target}"
-        make SOC=${IMX_BOOT_SOC_TARGET} dtbs=${UBOOT_DTB_NAME} ${target} 2>&1 | tee ${target}.log
+        make SOC=${IMX_BOOT_SOC_TARGET} ${REV_OPTION} ${MKIMAGE_EXTRA_ARGS} dtbs=${UBOOT_DTB_NAME} ${target} 2>&1 | tee ${target}.log
         install "${B}/${target}.log" "${BOOT_STAGING}/"
     done
 }
 
 do_sign_hab() {
+    if [ -z "${SIGNING_ARTIFACTS}" ]; then
+        bbfatal "No artifacts to sign, BOOT_CONFIG_MACHINE is not defined by the imx-boot recipe"
+    fi
     if [ ! -f "${BOOT_STAGING}/flash_evk.log" ] || [ ! -f "${BOOT_STAGING}/print_fit_hab.log" ]; then
         bbfatal "mkimage output files not available in ${BOOT_STAGING} directory"
     fi
 
     _payload=%%BIN_PATH%%
-    # Extract load address, offset and length from mkimage log file
-    eval $(awk  -F":" '(/hab block/)&&(gsub(/ /,"_",$1))&&($0=$1"=\""$2"\"")' ${BOOT_STAGING}/flash_evk.log)
+    # Extract load address, offset and length from mkimage log file, the
+    # fit-fdt lines are skipped as their names are not valid shell variables
+    eval $(awk  -F":" '(/hab block/)&&($1 !~ /-/)&&(gsub(/ /,"_",$1))&&($0=$1"=\""$2"\"")' ${BOOT_STAGING}/flash_evk.log)
     # Append the image binary path
     _spl_hab_block="${_spl_hab_block} \"${_payload}\""
     _sld_hab_block="${_sld_hab_block} \"${_payload}\""
@@ -50,7 +58,7 @@ do_sign_hab() {
     echo "$_spl_hab_block" >> ${WORKDIR}/csf_spl
 
     # Extract offsets from mkimage log file
-    eval $(awk '(/csf_off|sld_csf_off/)&&($0=$1"="$2)' ${BOOT_STAGING}/flash_evk.log)
+    eval $(awk '(/csf_off|sld_csf_off/)&&($1 !~ /-/)&&($0=$1"="$2)' ${BOOT_STAGING}/flash_evk.log)
     bbnote "csf_off=${csf_off} sld_csf_off=${sld_csf_off}"
 
     for SIGNING_ARTIFACT in ${SIGNING_ARTIFACTS}; do
