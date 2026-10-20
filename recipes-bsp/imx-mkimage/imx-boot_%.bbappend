@@ -1,11 +1,24 @@
 inherit hab
 
 python __anonymous () {
+    # The image files are named imx-boot<variant>-<machine>-<config>.bin-<target>
+    # by the imx-boot recipe. BOOT_CONFIG_MACHINE holds the first part only when
+    # the BSP defines it, newer meta-imx releases do not and build the name
+    # inside the compile loop, so compose it from the variables used there
+    boot_config_machines = []
+    boot_config_machine = d.getVar('BOOT_CONFIG_MACHINE', True)
+    if boot_config_machine:
+        boot_config_machines.append(boot_config_machine)
+    else:
+        boot_variant = d.getVar('BOOT_VARIANT', True) or ""
+        machine = d.getVar('MACHINE', True)
+        for uboot_config in (d.getVar('UBOOT_CONFIG', True) or "").split():
+            boot_config_machines.append(f"imx-boot{boot_variant}-{machine}-{uboot_config}.bin")
     sign_artifact_names = []
-    boot_config_machine = "-".join([d.getVar('BOOT_NAME', True), d.getVar('MACHINE', True), d.getVar('UBOOT_CONFIG', True)]) + ".bin"
     imxboot_targets = d.getVar('IMXBOOT_TARGETS', True)
-    for target in imxboot_targets.split():
-        sign_artifact_names.append(f"{boot_config_machine}-{target}")
+    for boot_config_machine in boot_config_machines:
+        for target in imxboot_targets.split():
+            sign_artifact_names.append(f"{boot_config_machine}-{target}")
     d.setVar('SIGNING_ARTIFACTS', " ".join(sign_artifact_names))
 }
 
@@ -15,19 +28,23 @@ do_compile:append() {
             cp ${DEPLOY_DIR_IMAGE}/${BOOT_TOOLS}/${UBOOT_DTB_NAME} ${BOOT_STAGING}
         fi
         bbnote "building ${IMX_BOOT_SOC_TARGET} - ${target}"
-        make SOC=${IMX_BOOT_SOC_TARGET} dtbs=${UBOOT_DTB_NAME} ${target} 2>&1 | tee ${target}.log
+        make SOC=${IMX_BOOT_SOC_TARGET} ${REV_OPTION} ${MKIMAGE_EXTRA_ARGS} dtbs=${UBOOT_DTB_NAME} ${target} 2>&1 | tee ${target}.log
         install "${B}/${target}.log" "${BOOT_STAGING}/"
     done
 }
 
 do_sign_hab() {
+    if [ -z "${SIGNING_ARTIFACTS}" ]; then
+        bbfatal "No artifacts to sign, check UBOOT_CONFIG, BOOT_VARIANT and IMXBOOT_TARGETS"
+    fi
     if [ ! -f "${BOOT_STAGING}/flash_evk.log" ] || [ ! -f "${BOOT_STAGING}/print_fit_hab.log" ]; then
         bbfatal "mkimage output files not available in ${BOOT_STAGING} directory"
     fi
 
     _payload=%%BIN_PATH%%
-    # Extract load address, offset and length from mkimage log file
-    eval $(awk  -F":" '(/hab block/)&&(gsub(/ /,"_",$1))&&($0=$1"=\""$2"\"")' ${BOOT_STAGING}/flash_evk.log)
+    # Extract load address, offset and length from mkimage log file, the
+    # fit-fdt lines are skipped as their names are not valid shell variables
+    eval $(awk  -F":" '(/hab block/)&&($1 !~ /-/)&&(gsub(/ /,"_",$1))&&($0=$1"=\""$2"\"")' ${BOOT_STAGING}/flash_evk.log)
     # Append the image binary path
     _spl_hab_block="${_spl_hab_block} \"${_payload}\""
     _sld_hab_block="${_sld_hab_block} \"${_payload}\""
@@ -50,8 +67,11 @@ do_sign_hab() {
     echo "$_spl_hab_block" >> ${WORKDIR}/csf_spl
 
     # Extract offsets from mkimage log file
-    eval $(awk '(/csf_off|sld_csf_off/)&&($0=$1"="$2)' ${BOOT_STAGING}/flash_evk.log)
+    eval $(awk '(/csf_off|sld_csf_off/)&&($1 !~ /-/)&&($0=$1"="$2)' ${BOOT_STAGING}/flash_evk.log)
     bbnote "csf_off=${csf_off} sld_csf_off=${sld_csf_off}"
+    if [ -z "${csf_off}" ] || [ -z "${sld_csf_off}" ]; then
+        bbfatal "CSF offsets not found in ${BOOT_STAGING}/flash_evk.log"
+    fi
 
     for SIGNING_ARTIFACT in ${SIGNING_ARTIFACTS}; do
         # Generate CSF binaries
@@ -61,6 +81,13 @@ do_sign_hab() {
         # Append signature to image offsets to generate signed FIT image
         dd if=${WORKDIR}/csf_spl.bin of=${S}/${SIGNING_ARTIFACT} seek=$(printf "%d" ${csf_off}) bs=1 conv=notrunc
         dd if=${WORKDIR}/csf_fit.bin of=${S}/${SIGNING_ARTIFACT} seek=$(printf "%d" ${sld_csf_off}) bs=1 conv=notrunc
+
+        # Check that the CSFs are in the image, a CSF starts with the 0xd4 tag
+        for _off in ${csf_off} ${sld_csf_off}; do
+            if [ "$(xxd -p -l 1 -s $(printf "%d" ${_off}) ${S}/${SIGNING_ARTIFACT})" != "d4" ]; then
+                bbfatal "No CSF found at offset ${_off} of ${SIGNING_ARTIFACT}"
+            fi
+        done
     done
 }
 
