@@ -39,6 +39,7 @@ SRC_URI:append:mx8m-generic-bsp = " \
 "
 
 SRC_URI:append:iot-gate-imx8 = " \
+    file://spl-size.cfg \
     file://iot-gate-imx8-extend-the-load-address-for-FDT-files.patch \
     file://iot-gate-imx8-add-placeholder-for-IVT-offset-to-envi.patch \
     file://iot-gate-imx8-add-placeholder-for-DTB-IVT-offset-to-.patch \
@@ -53,6 +54,10 @@ SRC_URI:append:iot-gate-imx8plus = " \
 
 do_configure:prepend:mx8m-generic-bsp () {
     cat ${WORKDIR}/security.cfg >> ${S}/configs/${MACHINE}_defconfig
+}
+
+do_configure:prepend:iot-gate-imx8 () {
+    cat ${WORKDIR}/spl-size.cfg >> ${S}/configs/${MACHINE}_defconfig
 }
 
 # For KERNEL_SIGN_IVT_OFFSET and DTB_SIGN_IVT_OFFSET
