@@ -14,7 +14,6 @@ Signed-off-by: Alex Gonzalez <alexg@balena.io>
  1 file changed, 4 insertions(+)
 
 diff --git a/arch/arm/mach-imx/spl.c b/arch/arm/mach-imx/spl.c
-index 9ca152a943e2..c6438f5ded44 100644
 --- a/arch/arm/mach-imx/spl.c
 +++ b/arch/arm/mach-imx/spl.c
 @@ -20,6 +20,7 @@
@@ -23,15 +22,15 @@ index 9ca152a943e2..c6438f5ded44 100644
  #include <linux/libfdt.h>
 +#include <linux/delay.h>
  #include <mmc.h>
- 
- DECLARE_GLOBAL_DATA_PTR;
-@@ -326,6 +327,9 @@ void board_spl_fit_post_load(const void *fit)
- 	if (imx_hab_authenticate_image((uintptr_t)fit,
- 				       offset + IVT_SIZE + CSF_PAD_SIZE,
- 				       offset)) {
-+		/* Give time for ethernet to come up before panic */
-+		/* to signal device has booted and use it in tests  */
-+		mdelay(3000);
- 		panic("spl: ERROR:  image authentication unsuccessful\n");
+ #include <u-boot/lz4.h>
+ #include <image.h>
+@@ -524,6 +525,9 @@
+ 		if (imx_hab_authenticate_image((uintptr_t)fit,
+ 					       offset + IVT_SIZE + CSF_PAD_SIZE,
+ 					       offset)) {
++			/* Give time for ethernet to come up before panic */
++			/* to signal device has booted and use it in tests  */
++			mdelay(3000);
+ 			panic("spl: ERROR:  image authentication unsuccessful\n");
+ 		}
  	}
- }
