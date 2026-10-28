@@ -46,6 +46,7 @@ SRC_URI:append:iot-gate-imx8 = " \
 "
 
 SRC_URI:append:iot-gate-imx8plus = " \
+    file://spl-size.cfg \
     file://compulab-imx8m-plus-adjust-environment-for-secure-bo.patch \
     file://u-boot-compulab-iot-gate-imx8plus-configure-for-secu.patch \
     file://spl-delay-before-panic-on-authentication-failure.patch \
@@ -56,6 +57,10 @@ do_configure:prepend:mx8m-generic-bsp () {
 }
 
 do_configure:prepend:iot-gate-imx8 () {
+    cat ${WORKDIR}/spl-size.cfg >> ${S}/configs/${MACHINE}_defconfig
+}
+
+do_configure:prepend:iot-gate-imx8plus () {
     cat ${WORKDIR}/spl-size.cfg >> ${S}/configs/${MACHINE}_defconfig
 }
 
