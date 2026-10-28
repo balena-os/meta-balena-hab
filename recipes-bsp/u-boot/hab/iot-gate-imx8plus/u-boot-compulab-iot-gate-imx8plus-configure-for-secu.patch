@@ -4,20 +4,19 @@ Subject: [PATCH] u-boot-compulab: iot-gate-imx8plus: configure for secure boot
 
 Signed-off-by: Alex Gonzalez <alexg@balena.io>
 ---
- board/compulab/plat/Kconfig | 4 ++++
- 1 file changed, 4 insertions(+)
+ board/compulab/plat/Kconfig | 3 +++
+ 1 file changed, 3 insertions(+)
 
 diff --git a/board/compulab/plat/Kconfig b/board/compulab/plat/Kconfig
 --- a/board/compulab/plat/Kconfig
 +++ b/board/compulab/plat/Kconfig
-@@ -46,6 +46,10 @@
+@@ -46,6 +46,9 @@
  	select BINMAN
  	select SUPPORT_SPL
  	select IMX8M_LPDDR4
 +	select FSL_CAAM
 +	select FSL_BLOB
 +	select MISC
-+	select SPL_CRYPTO_SUPPORT if SPL
  
  config TARGET_IOTDIN_IMX8P
  	bool "CompuLab iotdin-imx8p"
