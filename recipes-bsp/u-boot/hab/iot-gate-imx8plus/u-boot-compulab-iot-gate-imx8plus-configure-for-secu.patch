@@ -10,7 +10,7 @@ Signed-off-by: Alex Gonzalez <alexg@balena.io>
 diff --git a/board/compulab/plat/Kconfig b/board/compulab/plat/Kconfig
 --- a/board/compulab/plat/Kconfig
 +++ b/board/compulab/plat/Kconfig
-@@ -56,3 +56,6 @@
+@@ -56,2 +56,5 @@
  	bool "CompuLab iot-gate-imx8plus"
 +	select FSL_CAAM
 +	select FSL_BLOB
