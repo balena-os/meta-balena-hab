@@ -51,6 +51,19 @@ do_sign_hab() {
 
     bbnote "_spl_hab_block=${_spl_hab_block} _sld_hab_block=${_sld_hab_block}"
 
+    if [ "${HAB_FIT_FDT_SIGNATURE}" = "1" ]; then
+        # The SPL authenticates the FIT FDT with HAB, instead of checking the
+        # hash of it stored after the SPL. The names of these lines have a
+        # dash, which is not valid in a shell variable, replace it
+        eval $(awk -F":" '(/fit-fdt hab block/)&&(gsub(/[ -]/,"_",$1))&&($0=$1"=\""$2"\"")' ${BOOT_STAGING}/flash_evk.log)
+        eval $(awk '(/fit-fdt csf_off/)&&($0="fit_fdt_csf_off="$3)' ${BOOT_STAGING}/flash_evk.log)
+        if [ -z "${_fit_fdt_hab_block}" ] || [ -z "${fit_fdt_csf_off}" ]; then
+            bbfatal "FIT FDT block and CSF offset not found in ${BOOT_STAGING}/flash_evk.log"
+        fi
+        _fit_fdt_hab_block="${_fit_fdt_hab_block} \"${_payload}\""
+        bbnote "_fit_fdt_hab_block=${_fit_fdt_hab_block} fit_fdt_csf_off=${fit_fdt_csf_off}"
+    fi
+
     # Extract load addresses, offsets and lengths from FIT log file
     blocks=$(awk -v payload=${_payload} '(/^0x/)&&($0=","$0" \""payload"\" \\\n")' ORS=" " ${BOOT_STAGING}/print_fit_hab.log)
 
@@ -88,6 +101,25 @@ do_sign_hab() {
                 bbfatal "No CSF found at offset ${_off} of ${SIGNING_ARTIFACT}"
             fi
         done
+
+        if [ "${HAB_FIT_FDT_SIGNATURE}" = "1" ]; then
+            # The FIT FDT block includes the FIT CSF, which has to be in the
+            # image already, so this one is signed last. As in the NXP example
+            # there is no need to unlock anything again
+            sed '/^\[Unlock\]/,/^$/d' ${WORKDIR}/csf > ${WORKDIR}/csf_fit_fdt
+            echo "${_fit_fdt_hab_block}" >> ${WORKDIR}/csf_fit_fdt
+            cst ${S}/${SIGNING_ARTIFACT} ${WORKDIR}/csf_fit_fdt
+
+            # The CSF has to fit before the next data, 0x2000 minus the IVT
+            _csf_size=$(stat -L -c %s ${WORKDIR}/csf_fit_fdt.bin)
+            if [ "${_csf_size}" -gt 8160 ]; then
+                bbfatal "The FIT FDT CSF is ${_csf_size} bytes, it does not fit in 8160 bytes"
+            fi
+            dd if=${WORKDIR}/csf_fit_fdt.bin of=${S}/${SIGNING_ARTIFACT} seek=$(printf "%d" ${fit_fdt_csf_off}) bs=1 conv=notrunc
+            if [ "$(xxd -p -l 1 -s $(printf "%d" ${fit_fdt_csf_off}) ${S}/${SIGNING_ARTIFACT})" != "d4" ]; then
+                bbfatal "No FIT FDT CSF found at offset ${fit_fdt_csf_off} of ${SIGNING_ARTIFACT}"
+            fi
+        fi
     done
 }
 
@@ -159,6 +191,9 @@ do_efuses[vardeps] += " \
     SIGN_HAB_PKI_ID \
     SIGN_AHAB_PKI_ID \
     SIGN_HAB_TYPE \
+"
+do_sign[vardeps] += " \
+    HAB_FIT_FDT_SIGNATURE \
 "
 addtask sign after do_compile before do_install
 addtask efuses after do_sign before do_deploy

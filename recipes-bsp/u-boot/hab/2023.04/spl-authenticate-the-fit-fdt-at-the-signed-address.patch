@@ -1,0 +1,55 @@
+From: guille-vega <guillermo.vega@balena.io>
+Subject: spl: imx: Authenticate the FIT FDT at the address it is signed for
+
+With CONFIG_IMX_SPL_FIT_FDT_SIGNATURE the SPL authenticates the FIT FDT
+with HAB in the place where the loader read the header to. HAB requires
+the IVT to be at the address it declares, which is the one the FIT is
+loaded to from SD/MMC, so the authentication fails for the loaders that
+read the header somewhere else. That is the case of the stream loader
+used when booting over USB, which reads it from the CONFIG_SPL_IMX_ROMAPI_LOADADDR
+buffer.
+
+Move the header to the address its IVT declares before authenticating it,
+as it is done later for the signed images. Nothing changes when the header
+is already there.
+
+Signed-off-by: guille-vega <guillermo.vega@balena.io>
+---
+ arch/arm/mach-imx/spl.c | 22 ++++++++++++++++++++--
+ 1 file changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/arch/arm/mach-imx/spl.c b/arch/arm/mach-imx/spl.c
+--- a/arch/arm/mach-imx/spl.c
++++ b/arch/arm/mach-imx/spl.c
+@@ -406,9 +406,29 @@
+ 	if (IS_ENABLED(CONFIG_IMX_HAB)) {
+ 		if (IS_ENABLED(CONFIG_IMX_SPL_FIT_FDT_SIGNATURE)) {
+ 			u32 offset = ALIGN(fdt_totalsize(fit), 0x1000);
++			u32 fdt_size = offset + 2 * CSF_PAD_SIZE;
++			struct ivt *fdt_ivt = (struct ivt *)((uintptr_t)fit +
++							     offset + CSF_PAD_SIZE);
+ 
+-			if (imx_hab_authenticate_image((uintptr_t)fit,
+-						       offset + 2 * CSF_PAD_SIZE,
++			/*
++			 * The FIT FDT is signed for the address its IVT declares, which
++			 * is the one the FIT is loaded to from SD/MMC. The loaders that
++			 * read the header to another place, as the stream one used when
++			 * booting over USB, have to move it there for HAB to be able to
++			 * authenticate it.
++			 */
++			if (fdt_ivt->hdr.magic == IVT_HEADER_MAGIC) {
++				void *signed_fit = (void *)(uintptr_t)(fdt_ivt->self -
++								       (offset + CSF_PAD_SIZE));
++
++				if (signed_fit != fit) {
++					memcpy(signed_fit, fit, fdt_size);
++					fit = signed_fit;
++					tmp = (u8 *)fit;
++				}
++			}
++
++			if (imx_hab_authenticate_image((uintptr_t)fit, fdt_size,
+ 						       offset + CSF_PAD_SIZE)) {
+ #ifdef CONFIG_ANDROID_SUPPORT
+ 				printf("spl: ERROR:  FIT FDT authentication unsuccessful\n");

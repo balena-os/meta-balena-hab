@@ -47,9 +47,11 @@ SRC_URI:append:iot-gate-imx8 = " \
 
 SRC_URI:append:iot-gate-imx8plus = " \
     file://spl-size.cfg \
+    file://fit-fdt-signature.cfg \
     file://compulab-imx8m-plus-adjust-environment-for-secure-bo.patch \
     file://u-boot-compulab-iot-gate-imx8plus-configure-for-secu.patch \
     file://spl-delay-before-panic-on-authentication-failure.patch \
+    file://spl-authenticate-the-fit-fdt-at-the-signed-address.patch \
 "
 
 do_configure:prepend:mx8m-generic-bsp () {
@@ -62,6 +64,10 @@ do_configure:prepend:iot-gate-imx8 () {
 
 do_configure:prepend:iot-gate-imx8plus () {
     cat ${WORKDIR}/spl-size.cfg >> ${S}/configs/${MACHINE}_defconfig
+    # The imx-boot recipe signs the FIT FDT when this is enabled, they have to match
+    if [ "${HAB_FIT_FDT_SIGNATURE}" = "1" ]; then
+        cat ${WORKDIR}/fit-fdt-signature.cfg >> ${S}/configs/${MACHINE}_defconfig
+    fi
 }
 
 # For KERNEL_SIGN_IVT_OFFSET and DTB_SIGN_IVT_OFFSET
