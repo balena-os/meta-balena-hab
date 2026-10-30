@@ -1,15 +1,24 @@
 inherit hab
 
 python __anonymous () {
-    # meta-imx's imx-boot defines the name of the image files, the
-    # meta-freescale one it replaces is parsed as well but is never built
+    # The image files are named imx-boot<variant>-<machine>-<config>.bin-<target>
+    # by the imx-boot recipe. BOOT_CONFIG_MACHINE holds the first part only when
+    # the BSP defines it, newer meta-imx releases do not and build the name
+    # inside the compile loop, so compose it from the variables used there
+    boot_config_machines = []
     boot_config_machine = d.getVar('BOOT_CONFIG_MACHINE', True)
-    if not boot_config_machine:
-        return
+    if boot_config_machine:
+        boot_config_machines.append(boot_config_machine)
+    else:
+        boot_variant = d.getVar('BOOT_VARIANT', True) or ""
+        machine = d.getVar('MACHINE', True)
+        for uboot_config in (d.getVar('UBOOT_CONFIG', True) or "").split():
+            boot_config_machines.append(f"imx-boot{boot_variant}-{machine}-{uboot_config}.bin")
     sign_artifact_names = []
     imxboot_targets = d.getVar('IMXBOOT_TARGETS', True)
-    for target in imxboot_targets.split():
-        sign_artifact_names.append(f"{boot_config_machine}-{target}")
+    for boot_config_machine in boot_config_machines:
+        for target in imxboot_targets.split():
+            sign_artifact_names.append(f"{boot_config_machine}-{target}")
     d.setVar('SIGNING_ARTIFACTS', " ".join(sign_artifact_names))
 }
 
@@ -26,7 +35,7 @@ do_compile:append() {
 
 do_sign_hab() {
     if [ -z "${SIGNING_ARTIFACTS}" ]; then
-        bbfatal "No artifacts to sign, BOOT_CONFIG_MACHINE is not defined by the imx-boot recipe"
+        bbfatal "No artifacts to sign, check UBOOT_CONFIG, BOOT_VARIANT and IMXBOOT_TARGETS"
     fi
     if [ ! -f "${BOOT_STAGING}/flash_evk.log" ] || [ ! -f "${BOOT_STAGING}/print_fit_hab.log" ]; then
         bbfatal "mkimage output files not available in ${BOOT_STAGING} directory"
@@ -60,6 +69,9 @@ do_sign_hab() {
     # Extract offsets from mkimage log file
     eval $(awk '(/csf_off|sld_csf_off/)&&($1 !~ /-/)&&($0=$1"="$2)' ${BOOT_STAGING}/flash_evk.log)
     bbnote "csf_off=${csf_off} sld_csf_off=${sld_csf_off}"
+    if [ -z "${csf_off}" ] || [ -z "${sld_csf_off}" ]; then
+        bbfatal "CSF offsets not found in ${BOOT_STAGING}/flash_evk.log"
+    fi
 
     for SIGNING_ARTIFACT in ${SIGNING_ARTIFACTS}; do
         # Generate CSF binaries
@@ -69,6 +81,13 @@ do_sign_hab() {
         # Append signature to image offsets to generate signed FIT image
         dd if=${WORKDIR}/csf_spl.bin of=${S}/${SIGNING_ARTIFACT} seek=$(printf "%d" ${csf_off}) bs=1 conv=notrunc
         dd if=${WORKDIR}/csf_fit.bin of=${S}/${SIGNING_ARTIFACT} seek=$(printf "%d" ${sld_csf_off}) bs=1 conv=notrunc
+
+        # Check that the CSFs are in the image, a CSF starts with the 0xd4 tag
+        for _off in ${csf_off} ${sld_csf_off}; do
+            if [ "$(xxd -p -l 1 -s $(printf "%d" ${_off}) ${S}/${SIGNING_ARTIFACT})" != "d4" ]; then
+                bbfatal "No CSF found at offset ${_off} of ${SIGNING_ARTIFACT}"
+            fi
+        done
     done
 }
 

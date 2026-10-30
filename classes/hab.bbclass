@@ -255,6 +255,9 @@ do_sign_ahab() {
 }
 
 do_sign() {
+    if [ -z "${SIGNING_ARTIFACTS}" ]; then
+        bbfatal "No artifacts to sign"
+    fi
     bbnote "Signing ${SIGNING_ARTIFACTS}"
     for SIGNING_ARTIFACT in ${SIGNING_ARTIFACTS}; do
         do_sign_${SIGN_HAB_TYPE} ${SIGNING_ARTIFACT}
