@@ -51,6 +51,8 @@ SRC_URI:append:iot-gate-imx8plus = " \
     file://compulab-imx8m-plus-adjust-environment-for-secure-bo.patch \
     file://u-boot-compulab-iot-gate-imx8plus-configure-for-secu.patch \
     file://spl-delay-before-panic-on-authentication-failure.patch \
+    file://spl-delay-before-panic-on-fit-fdt-authentication-failure.patch \
+    file://cmd-boot-delay-before-panic-on-authentication-failure.patch \
 "
 
 do_configure:prepend:mx8m-generic-bsp () {

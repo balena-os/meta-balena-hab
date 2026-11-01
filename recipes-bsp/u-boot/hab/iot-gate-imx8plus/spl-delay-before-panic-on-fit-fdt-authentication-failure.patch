@@ -1,0 +1,28 @@
+From: guille-vega <guillermo.vega@balena.io>
+Subject: spl: imx: Delay before panic on FIT FDT authentication failure
+
+With CONFIG_IMX_SPL_FIT_FDT_SIGNATURE the SPL authenticates the FIT FDT
+before the FIT images, and panics right away when that fails. The board
+resets before the ethernet link comes up, which the bootloader integrity
+tests monitor as the signal that the device has powered up.
+
+Delay before that panic too, as it is done for the FIT images.
+
+Signed-off-by: guille-vega <guillermo.vega@balena.io>
+---
+ arch/arm/mach-imx/spl.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/arch/arm/mach-imx/spl.c b/arch/arm/mach-imx/spl.c
+--- a/arch/arm/mach-imx/spl.c
++++ b/arch/arm/mach-imx/spl.c
+@@ -414,6 +414,9 @@
+ 				printf("spl: ERROR:  FIT FDT authentication unsuccessful\n");
+ 				return NULL;
+ #else
++				/* Give time for ethernet to come up before panic */
++				/* to signal device has booted and use it in tests  */
++				mdelay(3000);
+ 				panic("spl: ERROR:  FIT FDT authentication unsuccessful\n");
+ #endif
+ 			}
