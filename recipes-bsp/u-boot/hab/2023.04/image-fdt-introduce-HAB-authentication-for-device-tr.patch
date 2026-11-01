@@ -2,11 +2,16 @@ From: Alex Gonzalez <alexg@balena.io>
 Date: Mon, 30 Sep 2024 17:35:36 +0200
 Subject: [PATCH] image-fdt: introduce HAB authentication for device trees
 
+Before the panic, delay so that the ethernet link comes up. Otherwise the
+board resets first, and the bootloader integrity test of the OS suite never
+sees it power up and times out. The SPL does the same.
+
 Signed-off-by: Alex Gonzalez <alexg@balena.io>
+Signed-off-by: guille-vega <guillermo.vega@balena.io>
 ---
  arch/arm/mach-imx/hab.c | 15 +++++++++++++++
- boot/image-fdt.c        |  9 +++++++++
- 2 files changed, 24 insertions(+)
+ boot/image-fdt.c        | 13 +++++++++++++
+ 2 files changed, 28 insertions(+)
 
 diff --git a/arch/arm/mach-imx/hab.c b/arch/arm/mach-imx/hab.c
 index f557b2c84e28..ea3f92064079 100644
@@ -38,13 +43,24 @@ diff --git a/boot/image-fdt.c b/boot/image-fdt.c
 index e86218d79037..1280c0ec1a87 100644
 --- a/boot/image-fdt.c
 +++ b/boot/image-fdt.c
-@@ -542,6 +542,15 @@ int boot_get_fdt(int flag, int argc, char *const argv[], uint8_t arch,
+@@ -19,6 +19,7 @@
+ #include <malloc.h>
+ #include <asm/global_data.h>
+ #include <linux/libfdt.h>
++#include <linux/delay.h>
+ #include <mapmem.h>
+ #include <asm/io.h>
+ #include <dm/ofnode.h>
+@@ -542,6 +543,18 @@ int boot_get_fdt(int flag, int argc, char *const argv[], uint8_t arch,
  	debug("   of_flat_tree at 0x%08lx size 0x%08lx\n",
  	      (ulong)*of_flat_tree, *of_size);
  
 +#if defined(CONFIG_IMX_HAB)
 +	extern int authenticate_dtb(uint32_t ddr_start, uint32_t raw_image_size);
 +	if (authenticate_dtb((uintptr_t)fdt_blob, *of_size) != 0) {
++		/* Give time for ethernet to come up before panic */
++		/* to signal device has booted and use it in tests  */
++		mdelay(3000);
 +		panic("Authenticate dtb failure, bailing out\n");
 +	} else {
 +		printf("DTB authentication passed\n");
