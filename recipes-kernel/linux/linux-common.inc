@@ -1,8 +1,9 @@
 FILESEXTRAPATHS:prepend := "${THISDIR}/files:"
 
-SRC_URI:append = " \
-    file://crypto-engine-fix-crypto_queue-backlog-handling.patch \
-"
+# The crypto_queue backlog fix is in mainline since 6.4, and the patch does not
+# apply to newer kernels
+CRYPTO_ENGINE_BACKLOG_FIX = "${@'file://crypto-engine-fix-crypto_queue-backlog-handling.patch' if bb.utils.vercmp_string_op((d.getVar('LINUX_VERSION') or d.getVar('PV')).split('+')[0], '6.4', '<') else ''}"
+SRC_URI:append = " ${CRYPTO_ENGINE_BACKLOG_FIX}"
 
 BALENA_CONFIGS:append = " caam"
 BALENA_CONFIGS[caam] = " \
