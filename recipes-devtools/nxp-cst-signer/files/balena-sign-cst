@@ -1,0 +1,75 @@
+#!/bin/sh
+#
+# CST replacement for imx_signer that has the CSF signed by the balena signing
+# server instead of with local keys. imx_signer runs it as
+#   ${SIG_TOOL_PATH}/linux64/bin/cst [--verbose] --i <csf> --o <csf binary>
+# The CSF refers to the certificates under ${SIG_DATA_PATH}/crts and to the
+# image being signed, the server takes them as %%CERTS_PATH%% and %%BIN_PATH%%
+#
+# Environment: SIG_DATA_PATH, SIGN_API, SIGN_API_KEY, SIGN_IMX_PKI_ID,
+# SIGN_HAB_TYPE and optionally CURL_CA_BUNDLE
+
+set -eu
+
+fail() {
+    echo "cst: $*" >&2
+    exit 1
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --i) csf="$2"; shift ;;
+        --o) out="$2"; shift ;;
+        --verbose) ;;
+        *) fail "unsupported option $1" ;;
+    esac
+    shift
+done
+
+[ -n "${csf:-}" ] && [ -n "${out:-}" ] || fail "--i and --o are required"
+for var in SIG_DATA_PATH SIGN_API SIGN_API_KEY SIGN_IMX_PKI_ID SIGN_HAB_TYPE; do
+    eval "[ -n \"\${${var}:-}\" ]" || fail "${var} is not set"
+done
+
+# All the blocks are in the image being signed, which already has the CSFs
+# signed before this one
+payload=$(sed -n '/^\[Authenticate Data\]/,$ s/.*"\([^"]*\)".*/\1/p' "${csf}" | sort -u)
+[ -n "${payload}" ] || fail "no blocks to sign in ${csf}"
+[ "$(echo "${payload}" | wc -l)" -eq 1 ] || fail "blocks from more than one file in ${csf}"
+[ -f "${payload}" ] || fail "${payload} not found"
+
+tmpdir=$(mktemp -d)
+trap 'rm -rf "${tmpdir}"' EXIT
+
+sed -e "s|\"${SIG_DATA_PATH}/crts/|\"%%CERTS_PATH%%/|" \
+    -e "s|\"${payload}\"|\"%%BIN_PATH%%\"|" \
+    "${csf}" > "${tmpdir}/csf"
+# The server only has the keys and certificates of the PKI tree
+if grep 'File = ' "${tmpdir}/csf" | grep -qv '"%%CERTS_PATH%%/'; then
+    fail "${csf} uses files outside of ${SIG_DATA_PATH}/crts"
+fi
+
+{
+    printf '{"pki_id": "%s", "hab_type": "%s", "payload": "' "${SIGN_IMX_PKI_ID}" "${SIGN_HAB_TYPE}"
+    base64 -w 0 "${payload}"
+    printf '", "csf": "'
+    base64 -w 0 "${tmpdir}/csf"
+    printf '"}'
+} > "${tmpdir}/request"
+# In a file, so that the key is not in the command line
+printf 'X-API-Key: %s\n' "${SIGN_API_KEY}" > "${tmpdir}/headers"
+
+# Timeout is 1 minute plus 1 minute per MB
+size=$(stat -L -c %s "${payload}")
+timeout=$((60 + size / 1024 / 1024 * 60))
+status=$(curl --retry 5 --silent --show-error --max-time "${timeout}" -w "%{http_code}" \
+    "${SIGN_API}/imx/cst" -X POST -H "Content-Type: application/json" -H "@${tmpdir}/headers" \
+    -d "@${tmpdir}/request" --output "${tmpdir}/response") || fail "request failed with error $?"
+case "${status}" in
+    2*) ;;
+    *) fail "signing ${payload} failed with status code ${status}" ;;
+esac
+
+jq -r ".csf_bin" < "${tmpdir}/response" | base64 -d > "${out}"
+# A CSF starts with the 0xd4 tag
+[ "$(od -A n -t x1 -N 1 "${out}" | tr -d ' ')" = "d4" ] || fail "no CSF returned for ${csf}"
