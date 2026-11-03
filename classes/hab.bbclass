@@ -5,9 +5,6 @@ inherit deploy
 BALENA_SIGN_SLOT_INDEX ?= "0"
 BALENA_SIGN_CERTS_KEY_LENGTH ?= "4096"
 SIGN_HAB_TYPE ?= "hab"
-# From U-boot's hab.c CONFIG_PAD_SIZE, 0x2000
-CONFIG_PAD_SIZE_D ?= "8192"
-
 # This is the IVT_SIZE macro in U-boot, 0x20
 IVT_SIZE_D = "32"
 
@@ -73,23 +70,10 @@ do_hab_ivt() {
     _csf_ptr=$(printf 0x%x $(expr ${_load_addr_d} + ${_padsize_d} + ${IVT_SIZE_D} ))
 
     bbnote "_load_addr ${_load_addr} _image_size ${_image_size} _padsize ${_padsize} _ivt_off ${_ivt_off} _ivt_ptr ${_ivt_ptr} _csf_ptr ${_csf_ptr}"
-    # Generate and concatenate little endian IVT
-    # Fields: IVT header, jump location, reserved (0), DCD pointer (null), boot data (null), self pointer, CSF pointer, reserved (0)
-    _ivt_header="0x402000D1"
-    # Avoid using the shell printf built-in
-    PRINTF=$(which printf)
-    {
-        ${PRINTF} $(${PRINTF} "%08x" ${_ivt_header} | sed 's/.\{2\}/&\n/g' | tac | sed 's,^,\\x,g' | tr -d '\n') # W: Quote this to prevent word splitting.
-        ${PRINTF} $(${PRINTF} "%08x" ${_load_addr} | sed 's/.\{2\}/&\n/g' | tac | sed 's,^,\\x,g' | tr -d '\n') # W: Quote this to prevent word splitting.
-        ${PRINTF} $(${PRINTF} "%08x" 0 | sed 's/.\{2\}/&\n/g' | tac | sed 's,^,\\x,g' | tr -d '\n') # W: Quote this to prevent word splitting.
-        ${PRINTF} $(${PRINTF} "%08x" 0 | sed 's/.\{2\}/&\n/g' | tac | sed 's,^,\\x,g' | tr -d '\n') # W: Quote this to prevent word splitting.
-        ${PRINTF} $(${PRINTF} "%08x" 0 | sed 's/.\{2\}/&\n/g' | tac | sed 's,^,\\x,g' | tr -d '\n') # W: Quote this to prevent word splitting.
-        ${PRINTF} $(${PRINTF} "%08x" ${_ivt_ptr} | sed 's/.\{2\}/&\n/g' | tac | sed 's,^,\\x,g' | tr -d '\n') # W: Quote this to prevent word splitting.
-        ${PRINTF} $(${PRINTF} "%08x" ${_csf_ptr} | sed 's/.\{2\}/&\n/g' | tac | sed 's,^,\\x,g' | tr -d '\n') # W: Quote this to prevent word splitting.
-        ${PRINTF} $(${PRINTF} "%08x" 0 | sed 's/.\{2\}/&\n/g' | tac | sed 's,^,\\x,g' | tr -d '\n') # W: Quote this to prevent word splitting.
-    } >> "${_ivt_artifact}"
-
-    echo "${_ivt_artifact}"
+    # Append the IVT, little endian: header, entry (load address), reserved,
+    # DCD pointer, boot data, self pointer, CSF pointer, reserved
+    python3 -c 'import struct, sys; sys.stdout.buffer.write(struct.pack("<8I", *(int(v, 0) for v in sys.argv[1:])))' \
+        0x402000D1 ${_load_addr} 0 0 0 ${_ivt_ptr} ${_csf_ptr} 0 >> "${_ivt_artifact}"
 }
 
 # imx_signer configuration of the CSFs. imx_signer reads the keys in this
@@ -167,7 +151,9 @@ do_sign_hab() {
         gunzip "${_signing_artifact}.gz"
     fi
 
-    _ivt_artifact=$(do_hab_ivt ${_signing_artifact} ${HAB_LOAD_ADDR})
+    # do_hab_ivt writes the padded image with the IVT to <artifact>.ivt
+    do_hab_ivt ${_signing_artifact} ${HAB_LOAD_ADDR}
+    _ivt_artifact="${_signing_artifact}.ivt"
 
     hab_imx_signer ${_ivt_artifact}
     _signed="${HAB_SIGN_WORKDIR}/signed-$(basename ${_ivt_artifact})"
