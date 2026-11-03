@@ -36,6 +36,9 @@ SRC_URI:append:mx8m-generic-bsp = " \
     file://image-fdt-introduce-HAB-authentication-for-device-tr.patch \
     file://cmd-boot-panic-if-image-authentication-fails.patch \
     file://hab-set-hab-status-in-environment.patch \
+    file://spl-delay-before-panic-on-authentication-failure.patch \
+    file://spl-delay-before-panic-on-fit-fdt-authentication-failure.patch \
+    file://cmd-boot-delay-before-panic-on-authentication-failure.patch \
 "
 
 SRC_URI:append:iot-gate-imx8 = " \
@@ -50,9 +53,6 @@ SRC_URI:append:iot-gate-imx8plus = " \
     file://fit-fdt-signature.cfg \
     file://compulab-imx8m-plus-adjust-environment-for-secure-bo.patch \
     file://u-boot-compulab-iot-gate-imx8plus-configure-for-secu.patch \
-    file://spl-delay-before-panic-on-authentication-failure.patch \
-    file://spl-delay-before-panic-on-fit-fdt-authentication-failure.patch \
-    file://cmd-boot-delay-before-panic-on-authentication-failure.patch \
 "
 
 do_configure:prepend:mx8m-generic-bsp () {
