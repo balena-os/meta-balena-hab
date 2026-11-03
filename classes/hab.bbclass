@@ -1,6 +1,4 @@
-BOOT_TOOLS = "imx-boot-tools"
-
-DEPENDS:append = " coreutils-native curl-native jq-native ca-certificates-native xxd-native"
+DEPENDS:append = " coreutils-native curl-native jq-native ca-certificates-native xxd-native nxp-cst-signer-native"
 
 inherit deploy
 
@@ -206,6 +204,56 @@ EOF
     sed -i "s/%%CERTS_KEY_LENGTH%%/${BALENA_SIGN_CERTS_KEY_LENGTH}/g" "${WORKDIR}/csf"
 }
 
+# imx_signer configuration of the CSFs. imx_signer reads the keys in this
+# order, keep them all and in the same order
+prepare_imx_signer_cfg() {
+    if [ "${BALENA_SIGN_SLOT_INDEX}" -lt "0" ] || [ "${BALENA_SIGN_SLOT_INDEX}" -gt "3" ]; then
+        bbfatal "Invalid slot index ${BALENA_SIGN_SLOT_INDEX} - expected between 0 and 3"
+    fi
+    _slot_index_1=$(expr ${BALENA_SIGN_SLOT_INDEX} + 1)
+    _cert_suffix="_1_sha256_${BALENA_SIGN_CERTS_KEY_LENGTH}_65537_v3_usr_crt.pem"
+    cat << EOF > ${WORKDIR}/imx_signer.cfg
+header_version=4.2
+header_eng=CAAM
+header_eng_config=0
+srktable_file=../SRK_table.bin
+srk_source_index=${BALENA_SIGN_SLOT_INDEX}
+nocak_file=
+csfk_file=CSF${_slot_index_1}${_cert_suffix}
+unlock_engine=CAAM,OCOTP
+unlock_features=MID,RNG,SRK REVOKE
+unlock_uid=
+img_verification_index=0
+img_target_index=2
+img_file=IMG${_slot_index_1}${_cert_suffix}
+auth_verification_index=2
+EOF
+}
+
+# Sign a HAB image with imx_signer, which finds the blocks to sign from the
+# IVTs in it. It writes the CSFs and signed-<image> to the current directory,
+# do_sign runs in HAB_SIGN_WORKDIR. Its cst has the server sign the CSFs
+hab_imx_signer() {
+    _input="${1}"
+
+    if [ -z "${SIGN_API}" ] || [ -z "${SIGN_API_KEY}" ] || [ -z "${SIGN_HAB_PKI_ID}" ]; then
+        bbfatal "SIGN_API, SIGN_API_KEY and SIGN_HAB_PKI_ID must be defined"
+    fi
+
+    prepare_imx_signer_cfg
+
+    # SIG_DATA_PATH is only a prefix, the shim replaces it with the PKI tree
+    # path on the server
+    if ! SIG_TOOL_PATH="${STAGING_DATADIR_NATIVE}/balena-sign-cst" \
+            SIG_DATA_PATH="${HAB_SIGN_WORKDIR}/pki" \
+            SIGN_API="${SIGN_API}" SIGN_API_KEY="${SIGN_API_KEY}" \
+            SIGN_IMX_PKI_ID="${SIGN_HAB_PKI_ID}" SIGN_HAB_TYPE="${SIGN_HAB_TYPE}" \
+            CURL_CA_BUNDLE="${STAGING_DIR_NATIVE}/etc/ssl/certs/ca-certificates.crt" \
+            imx_signer -d -i "${_input}" -c ${WORKDIR}/imx_signer.cfg; then
+        bbfatal "imx_signer failed to sign ${_input}"
+    fi
+}
+
 do_sign_hab() {
     _signing_artifact="${1}"
     _load_addr="${HAB_LOAD_ADDR}"
@@ -271,6 +319,10 @@ do_sign[depends] += " \
     ca-certificates-native:do_populate_sysroot \
 "
 do_sign[network] = "1"
+# imx_signer writes to the current directory
+HAB_SIGN_WORKDIR = "${WORKDIR}/imx-signer"
+do_sign[dirs] = "${HAB_SIGN_WORKDIR}"
+do_sign[cleandirs] = "${HAB_SIGN_WORKDIR}"
 
 do_sign[vardeps] += " \
     SIGN_API \

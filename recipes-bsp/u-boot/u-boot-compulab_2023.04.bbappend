@@ -57,7 +57,6 @@ SRC_URI:append:iot-gate-imx8plus = " \
 
 do_configure:prepend:mx8m-generic-bsp () {
     cat ${WORKDIR}/security.cfg >> ${S}/configs/${MACHINE}_defconfig
-    # The imx-boot recipe signs the FIT FDT when this is enabled, they have to match
     if [ "${HAB_FIT_FDT_SIGNATURE}" = "1" ]; then
         cat ${WORKDIR}/fit-fdt-signature.cfg >> ${S}/configs/${MACHINE}_defconfig
     fi
