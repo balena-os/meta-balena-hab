@@ -218,15 +218,6 @@ do_sign_hab() {
         bbfatal "Load address is required"
     fi
 
-    _gzip_payload=0
-    _filetype=$(file --mime-type -b "${_signing_artifact}")
-    if [ "${_filetype}" = "application/gzip" ]; then
-        _gzip_payload=1
-        bbnote "Uncompressing compressed payload"
-        mv "${_signing_artifact}" "${_signing_artifact}.gz"
-        gunzip "${_signing_artifact}.gz"
-    fi
-
     _ivt_artifact=$(do_hab_ivt ${_signing_artifact} ${HAB_LOAD_ADDR})
 
     prepare_sign_csf
@@ -243,11 +234,6 @@ do_sign_hab() {
 
     # Append to image to generate signed image
     cat "${_ivt_artifact}" "${WORKDIR}/csf.bin" > "${_signing_artifact}"
-
-    if [ "${_gzip_payload}" = "1" ]; then
-        gzip "${_signing_artifact}"
-        mv "${_signing_artifact}.gz" "${_signing_artifact}"
-    fi
 }
 
 do_sign_ahab() {
