@@ -22,8 +22,43 @@ python __anonymous () {
     d.setVar('SIGNING_ARTIFACTS', " ".join(sign_artifact_names))
 }
 
-# imx_signer finds every IVT in the image, the FIT FDT one included, and signs
-# them in order, each CSF covering the ones before it
+# Layout of the signed imx-boot image
+#
+# It is written at the start of the eMMC boot0 partition. The offsets are the
+# ones mkimage prints in its log. imx_signer finds the IVTs in the image and
+# signs the blocks 1, 2 and 3 in this order, as block 3 covers the FIT CSF.
+# It writes each CSF where mkimage left room for it, which its IVT points to.
+#
+#                    Offset in the image         Loaded by, to       Blocks
+# +----------------+ 0x0                         Boot ROM, OCRAM     -
+# | IVT, boot data |                                                 |
+# | SPL            |                                                 1
+# | DDR firmware   |                                                 |
+# +----------------+ csf_off                                         -
+# | SPL CSF        |
+# +----------------+ sld_header_off              SPL, DDR            -  -
+# | FIT FDT        |                                                 |  |
+# +----------------+ sld_header_off + 0x1000                         2  |
+# | FIT IVT        |                                                 |  |
+# +----------------+ sld_csf_off                                     -  |
+# | FIT CSF        |                                                    3
+# +----------------+ fit-fdt csf_off - 0x20                             |
+# | FIT FDT IVT    |                                                    |
+# +----------------+ fit-fdt csf_off                                    -
+# | FIT FDT CSF    |
+# +----------------+ fit-fdt csf_off + 0x1fe0    SPL, DDR            -
+# | U-Boot, DTB    |                                                 |
+# +----------------+                             SPL, OCRAM          2
+# | ATF            |                                                 |
+# +----------------+                                                 -
+#
+# 1: SPL block, the IVT, boot data, SPL and DDR firmware. Signed by the SPL
+#    CSF, the boot ROM authenticates it.
+# 2: FIT block, the FIT FDT and IVT, U-Boot, its DTB and ATF. Signed by the FIT
+#    CSF, the SPL authenticates it once it has loaded the images.
+# 3: FIT FDT block, the FIT FDT, IVT and CSF and the FIT FDT IVT. Signed by
+#    the FIT FDT CSF, the SPL authenticates it before it reads the FIT
+#    (CONFIG_IMX_SPL_FIT_FDT_SIGNATURE).
 do_sign_hab() {
     if [ -z "${SIGNING_ARTIFACTS}" ]; then
         bbfatal "No artifacts to sign, check UBOOT_CONFIG, BOOT_VARIANT and IMXBOOT_TARGETS"

@@ -13,34 +13,49 @@ image_size() {
 }
 
 
-# +------------+  0x0 (DDR_UIMAGE_START) -
-# |   Header   |                          |
-# +------------+  0x40                    |
-# |            |                          |
-# |            |                          |
-# |            |                          |
-# |            |                          |
-# | Image Data |                          |
-# .            |                          |
-# .            |                           > Stuff to be authenticated ----+
-# .            |                          |                                |
-# |            |                          |                                |
-# |            |                          |                                |
-# +------------+                          |                                |
-# |            |                          |                                |
-# | Fill Data  |                          |                                |
-# |            |                          |                                |
-# +------------+ Align to ALIGN_SIZE      |                                |
-# |    IVT     |                          |                                |
-# +------------+ + IVT_SIZE              -                                 |
-# |            |                                                           |
-# |  CSF DATA  | <---------------------------------------------------------+
-# |            |
-# +------------+
-# |            |
-# | Fill Data  |
-# |            |
-# +------------+ + CSF_PAD_SIZE
+# Signed kernel bundle and device trees
+#
+# The kernel bundle is the balena bootloader, the kernel linux-balena-bootloader
+# builds with its initramfs. It and the device trees are files in the balena-imx
+# partition, each signed for the address U-Boot loads it at. The kernel bundle
+# is gzipped again after signing, what is signed is its unpacked content.
+#
+# Layout of a signed image
+#
+#                  Offset in the image         Address in DDR
+# +--------------+ 0x0                         HAB_LOAD_ADDR        -
+# |              |                                                  |
+# |  Image data  |                                                  |
+# |              |                                                  |
+# +--------------+                                                   > Signed
+# |  Zero fill   |                                                  |  block
+# +--------------+ IVT offset, 12 KiB aligned  + IVT offset         |
+# |     IVT      | Points to the CSF                                |
+# +--------------+ IVT offset + 0x20           + IVT offset + 0x20  -
+# |     CSF      | Signature of the signed block, up to CSF_PAD_SIZE (0x2000)
+# +--------------+ End of the image
+#
+# do_hab_ivt writes the IVT offsets to hab_auth. U-Boot is built with them in
+# its environment, as ivt_offset for the kernel bundle and dtb_ivt_offset for
+# the device trees.
+#
+# Authentication by U-Boot
+#
+#   balena-imx partition                     DDR
+#   +-----------+    booti unpacks it        +--------------------------------+
+#   | /Image.gz | -------------------------> | loadaddr, HAB_KERNEL_LOAD_ADDR |
+#   +-----------+                            +--------------------------------+
+#   | /*.dtb    | -------------------------> | fdt_addr_r, HAB_DTB_LOAD_ADDR  |
+#   +-----------+    U-Boot loads it         +--------------------------------+
+#
+#   Before booting them, for each one:
+#   1. U-Boot reads the IVT at its address + ivt_offset or dtb_ivt_offset, and
+#      checks that its self pointer is that address and that it points to a CSF.
+#   2. HAB in the boot ROM checks the CSF. The SRK table in it against the SRK
+#      hash in the fuses, the CSF and IMG certificates against the SRK, and the
+#      IMG signature over the signed block.
+#   3. If it fails, U-Boot panics on a closed device. On an open one HAB only
+#      records the failure, which hab_status shows.
 
 do_hab_ivt() {
     _signing_artifact="${1}"
@@ -52,10 +67,9 @@ do_hab_ivt() {
 
     _image_size_d=$(image_size "${_signing_artifact}")
     _image_size=$(printf "0x%x" ${_image_size_d})
-    # Align to the next multiple of 12288
+    # Pad to a multiple of 12 KiB, so that all the device trees have the IVT
+    # at the same offset, as U-Boot has a single dtb_ivt_offset
     _align_size=12288
-    # Equivalent to `raw_image_size + ALIGN_SIZE - 1) & ~(ALIGN_SIZE - 1)`
-    # in U-Boot's hab.c authenticate_image()
     _padsize_d="$( expr \( $_image_size_d + $_align_size - 1 \) / $_align_size \* $_align_size)"
     _padsize=$(printf "0x%x" ${_padsize_d})
     _ivt_artifact="${_signing_artifact}.ivt"
