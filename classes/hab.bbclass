@@ -141,6 +141,10 @@ hab_imx_signer() {
         bbfatal "imx_signer failed to sign ${_input}"
     fi
 }
+# The key only authorizes the requests, it does not change what is signed.
+# Keep it out of the task hashes, and so out of the signature files that are
+# stored with the sstate objects
+hab_imx_signer[vardepsexclude] += "SIGN_API_KEY"
 
 do_sign_hab() {
     _signing_artifact="${1}"

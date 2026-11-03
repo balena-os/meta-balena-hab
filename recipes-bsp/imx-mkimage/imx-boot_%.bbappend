@@ -98,6 +98,8 @@ do_efuses[depends] += " \
 "
 do_efuses[network] = "1"
 
+# See hab_imx_signer
+do_efuses[vardepsexclude] += "SIGN_API_KEY"
 do_efuses[vardeps] += " \
     SIGN_API \
     SIGN_HAB_PKI_ID \
