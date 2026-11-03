@@ -11,69 +11,6 @@ CONFIG_PAD_SIZE_D ?= "8192"
 # This is the IVT_SIZE macro in U-boot, 0x20
 IVT_SIZE_D = "32"
 
-cst() {
-    _input_artifact="${1}"
-    _csf_artifact="${2}"
-    _output_artifact="${2}.bin"
-
-    if [ -z "${_input_artifact}" ]; then
-        bbfatal "Nothing to sign"
-    fi
-
-    if [ -z "${_csf_artifact}" ]; then
-        bbfatal "CSF description file is required"
-    fi
-
-    if [ "x${SIGN_API}" = "x" ]; then
-        bbnote "Signing API not defined"
-        return 1
-    fi
-
-    if [ "x${SIGN_API_KEY}" = "x" ]; then
-        bbfatal "Signing API key must be defined"
-    fi
-
-    if [ "${SIGN_HAB_TYPE}" = "hab" ]; then
-        if [ "x${SIGN_HAB_PKI_ID}" = "x" ]; then
-            bbfatal "HAB PKI ID must be defined"
-        else
-            SIGN_IMX_PKI_ID=${SIGN_HAB_PKI_ID}
-        fi
-    fi
-
-    if [ "${SIGN_HAB_TYPE}" = "ahab" ]; then
-        if [ "x${SIGN_AHAB_PKI_ID}" = "x" ]; then
-            bbfatal "AHAB PKI ID must be defined"
-        else
-            SIGN_IMX_PKI_ID=${SIGN_AHAB_PKI_ID}
-        fi
-    fi
-
-    if [ -z "${SIGN_IMX_PKI_ID}" ]; then
-        bbfatal "PKI ID must be defined"
-    fi
-
-    REQUEST_FILE=$(mktemp)
-    RESPONSE_FILE=$(mktemp)
-    _size=$(du -b "${_input_artifact}" | awk '{print $1}')
-    # Timeout is 1 minute plus 1 minute per MB
-    _timeout=$(expr 60 +  $_size / 1024 / 1024 \* 60)
-    echo "{\"pki_id\": \"${SIGN_IMX_PKI_ID}\", \"hab_type\": \"${SIGN_HAB_TYPE}\",\"payload\": \"$(base64 -w 0 ${_input_artifact})\", \"csf\": \"$(base64 -w 0 ${_csf_artifact})\" }" > "${REQUEST_FILE}"
-    if _status_code=$(CURL_CA_BUNDLE="${STAGING_DIR_NATIVE}/etc/ssl/certs/ca-certificates.crt" curl --retry 5 --silent --show-error --max-time ${_timeout} -w "%{http_code}" "${SIGN_API}/imx/cst" -X POST -H "Content-Type: application/json" -H "X-API-Key: ${SIGN_API_KEY}" -d "@${REQUEST_FILE}" --output "${RESPONSE_FILE}"); then
-        case "${_status_code}" in
-            2*) jq -r ".csf_bin" < "${RESPONSE_FILE}" | base64 -d > "${_output_artifact}" ;;
-            *) bbfatal "Failed to sign ${_input_artifact} with error $? and status code ${_status_code}" ;;
-        esac
-    else
-        bbfatal "Failed to sign ${_input_artifact} with error $?"
-    fi
-
-    if [ ! -s "${_output_artifact}" ]; then
-        bbfatal "Unspecified error - empty file"
-    fi
-    rm -f "${REQUEST_FILE}" "${RESPONSE_FILE}"
-}
-
 image_size() {
     echo "$(stat -L -c %s ${1})"
 }
@@ -155,55 +92,6 @@ do_hab_ivt() {
     echo "${_ivt_artifact}"
 }
 
-prepare_sign_csf() {
-    cat << 'EOF' > ${WORKDIR}/csf
-[Header]
-    Version = 4.2
-    Hash Algorithm = sha256
-    Engine = CAAM
-    Engine Configuration = 0
-    Certificate Format = X509
-    Signature Format = CMS
-
-[Install SRK]
-    File = "%%CERTS_PATH%%/../SRK_table.bin"
-    Source index = %%SLOT_INDEX%%
-
-[Install CSFK]
-    File = "%%CERTS_PATH%%/CSF%%SLOT_INDEX+1%%_1_sha256_%%CERTS_KEY_LENGTH%%_65537_v3_usr_crt.pem"
-
-[Authenticate CSF]
-
-[Unlock]
-    Engine = CAAM
-    Features = MID, RNG
-
-[Unlock]
-    Engine = OCOTP
-    Features = SRK REVOKE
-
-[Install Key]
-    Verification index = 0
-    Target Index = 2
-    File = "%%CERTS_PATH%%/IMG%%SLOT_INDEX+1%%_1_sha256_%%CERTS_KEY_LENGTH%%_65537_v3_usr_crt.pem"
-
-[Authenticate Data]
-    Verification index = 2
-    Blocks = \
-EOF
-
-    if [ "${BALENA_SIGN_SLOT_INDEX}" -lt "0" ] || [ "${BALENA_SIGN_SLOT_INDEX}" -gt "3" ]; then
-        bbfatal "Invalid slot index ${BALENA_SIGN_SLOT_INDEX} - expected between 0 and 3"
-    fi
-    # Configure CSF template for key slot index to use
-    bbnote "Configuring to use signing slot ${BALENA_SIGN_SLOT_INDEX}"
-    sed -i "s/%%SLOT_INDEX%%/${BALENA_SIGN_SLOT_INDEX}/g" "${WORKDIR}/csf"
-    _slot_index_1=$(( ${BALENA_SIGN_SLOT_INDEX} + 1))
-    sed -i "s/%%SLOT_INDEX+1%%/${_slot_index_1}/g" "${WORKDIR}/csf"
-    bbnote "Configuring to use certificate key lenght ${BALENA_SIGN_CERTS_KEY_LENGTH}"
-    sed -i "s/%%CERTS_KEY_LENGTH%%/${BALENA_SIGN_CERTS_KEY_LENGTH}/g" "${WORKDIR}/csf"
-}
-
 # imx_signer configuration of the CSFs. imx_signer reads the keys in this
 # order, keep them all and in the same order
 prepare_imx_signer_cfg() {
@@ -277,20 +165,19 @@ do_sign_hab() {
 
     _ivt_artifact=$(do_hab_ivt ${_signing_artifact} ${HAB_LOAD_ADDR})
 
-    prepare_sign_csf
+    hab_imx_signer ${_ivt_artifact}
+    _signed="${HAB_SIGN_WORKDIR}/signed-$(basename ${_ivt_artifact})"
 
-    # Append blocks lines to template
-    _image_size_d=$(image_size ${_ivt_artifact})
-    _image_size=$(printf 0x%x ${_image_size_d})
-    _blocks="  ${HAB_LOAD_ADDR} 0x00000000 ${_image_size} \"%%BIN_PATH%%\""
-    bbnote "blocks=${_blocks}"
-    echo "${_blocks}" >> ${WORKDIR}/csf
+    # imx_signer signs the first IVT it finds. Check it is the one at the end,
+    # with only its CSF appended, and not data in the image that looks like one
+    _block=$(sed -n 's/.*Blocks = \(0x[0-9A-F]* 0x[0-9A-F]* 0x[0-9A-F]*\) .*/\1/p' ${HAB_SIGN_WORKDIR}/csf_image0.txt)
+    _expected=$(printf "0x%08X 0x%08X 0x%08X" ${HAB_LOAD_ADDR} 0 $(image_size ${_ivt_artifact}))
+    if [ "${_block}" != "${_expected}" ] || \
+            ! cmp -s -n $(image_size ${_ivt_artifact}) ${_ivt_artifact} ${_signed}; then
+        bbfatal "imx_signer signed ${_block}, expected only ${_expected} with its CSF appended"
+    fi
 
-    # Generate CSF binaries
-    cst ${_ivt_artifact} ${WORKDIR}/csf
-
-    # Append to image to generate signed image
-    cat "${_ivt_artifact}" "${WORKDIR}/csf.bin" > "${_signing_artifact}"
+    mv ${_signed} ${_signing_artifact}
 
     if [ "${_gzip_payload}" = "1" ]; then
         gzip "${_signing_artifact}"
