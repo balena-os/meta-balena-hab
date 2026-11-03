@@ -32,6 +32,7 @@ do_generate_resin_uboot_configuration[depends] += " \
 
 SRC_URI:append:mx8m-generic-bsp = " \
     file://security.cfg \
+    file://fit-fdt-signature.cfg \
     file://mach-imx-hab-allow-to-specify-custom-IVT-offset-from.patch \
     file://image-fdt-introduce-HAB-authentication-for-device-tr.patch \
     file://cmd-boot-panic-if-image-authentication-fails.patch \
@@ -50,13 +51,16 @@ SRC_URI:append:iot-gate-imx8 = " \
 
 SRC_URI:append:iot-gate-imx8plus = " \
     file://spl-size.cfg \
-    file://fit-fdt-signature.cfg \
     file://compulab-imx8m-plus-adjust-environment-for-secure-bo.patch \
     file://u-boot-compulab-iot-gate-imx8plus-configure-for-secu.patch \
 "
 
 do_configure:prepend:mx8m-generic-bsp () {
     cat ${WORKDIR}/security.cfg >> ${S}/configs/${MACHINE}_defconfig
+    # The imx-boot recipe signs the FIT FDT when this is enabled, they have to match
+    if [ "${HAB_FIT_FDT_SIGNATURE}" = "1" ]; then
+        cat ${WORKDIR}/fit-fdt-signature.cfg >> ${S}/configs/${MACHINE}_defconfig
+    fi
 }
 
 do_configure:prepend:iot-gate-imx8 () {
@@ -65,10 +69,6 @@ do_configure:prepend:iot-gate-imx8 () {
 
 do_configure:prepend:iot-gate-imx8plus () {
     cat ${WORKDIR}/spl-size.cfg >> ${S}/configs/${MACHINE}_defconfig
-    # The imx-boot recipe signs the FIT FDT when this is enabled, they have to match
-    if [ "${HAB_FIT_FDT_SIGNATURE}" = "1" ]; then
-        cat ${WORKDIR}/fit-fdt-signature.cfg >> ${S}/configs/${MACHINE}_defconfig
-    fi
     # loadaddr, where the environment unpacks the kernel bundle, has to be the
     # address it is signed for
     echo "CONFIG_SYS_LOAD_ADDR=${HAB_KERNEL_LOAD_ADDR}" >> ${S}/configs/${MACHINE}_defconfig
