@@ -29,8 +29,8 @@ NXP's i.MX devices use High Assurance Boot (HAB) as the primary secure boot mech
 
 The boot ROM uses the following data:
 
-* **Super Root Key (SRK) table**: A set of public keys used to verify the artifacts being booted. They are generated during the build process and programmed into the OTP.
-* **Command Sequence File (CSF) description template**: Read by the boot ROM during the boot process, it determines how to validate artifacts by specifying the commands and parameters needed.
+* **Super Root Key (SRK) table**: A set of public keys used to verify the artifacts being booted. They belong to the signing server's PKI, and the hash of the table is programmed into the OTP.
+* **Command Sequence File (CSF)**: Appended to each signed artifact and read by HAB during the boot process, it determines how to validate the artifact by specifying the commands and parameters needed, and holds the signatures.
 
 Multiple system components are involved in the validation of a "trusted operating system":
 * The process starts in ROM, which we consider trusted by default ("root of trust")
@@ -40,6 +40,26 @@ Multiple system components are involved in the validation of a "trusted operatin
 * The Linux kernel then verifies the  kernel modules at loading time
 
 The above is commonly referred to as the "chain of trust". For `balenaOS`, the trust ends at kernel level - neither the userspace applications nor user containers are verified. The userspace is read-only and user containers are only installed from authenticated balenaCloud access.
+
+## Signing
+
+The build signs the boot image (`imx-boot`), the balena bootloader and the device trees with NXP's [`imx_signer`](https://github.com/nxp-imx-support/nxp-imx-signer), as [meta-nxp-security-reference-design](https://github.com/nxp-imx-support/meta-nxp-security-reference-design) does. `imx_signer` finds the IVTs in each image, works out the blocks to sign and writes the CSF descriptions, and runs NXP's Code Signing Tool (CST) for each of them.
+
+The signing keys never reach the build. `imx_signer` runs the `cst` it finds in `SIG_TOOL_PATH`, and the `nxp-cst-signer-native` recipe installs `balena-sign-cst` there instead of CST. It sends the CSF description and the image to the balena signing server, which runs CST with the keys and returns the signed CSF:
+
+```
+hab_imx_signer (classes/hab.bbclass)
+  └─ imx_signer -d -i <image> -c imx_signer.cfg        NXP, unmodified
+       ├─ finds the IVTs, works out the blocks, writes csf_imageN.txt
+       └─ runs ${SIG_TOOL_PATH}/linux64/bin/cst --i csf_imageN.txt --o csf_imageN.bin
+            └─ that cst is balena-sign-cst
+                 └─ POST ${SIGN_API}/imx/cst {pki_id, hab_type, payload: image, csf: CSF description}
+                      └─ signing server: runs CST with the keys of the PKI
+                 ← csf_bin, written to csf_imageN.bin
+       └─ imx_signer writes the CSF into the image, signed-<image>
+```
+
+Signing needs `SIGN_API`, `SIGN_API_KEY` and `SIGN_HAB_PKI_ID`. The layout of the signed images is described in `classes/hab.bbclass` and `recipes-bsp/imx-mkimage/imx-boot_%.bbappend`.
 
 ## One time programmable registers (OTP) and secure element keys
 
