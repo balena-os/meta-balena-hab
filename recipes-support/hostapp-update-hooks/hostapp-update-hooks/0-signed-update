@@ -45,6 +45,32 @@ if ! is_secured; then
     exit 0
 fi
 
+# The SRK hash fused in the device, the 8 words of banks 6 and 7 of the OCOTP.
+# Its nvmem only reads whole 4 byte words
+OCOTP_NVMEM="/sys/bus/nvmem/devices/imx-ocotp0/nvmem"
+SRK_FUSE_WORD=24
+FUSED_SRK_HASH=$(dd if="${OCOTP_NVMEM}" bs=4 skip=${SRK_FUSE_WORD} count=8 status=none | xxd -p -c 32)
+if [ "${#FUSED_SRK_HASH}" -ne 64 ]; then
+    fail "Cannot read the SRK hash fuses from ${OCOTP_NVMEM}"
+fi
+
+# Hash of an SRK table as HAB checks it against the fuses, the SHA-256 of the
+# SHA-256 of each key in it. Each key has its length in bytes 1 and 2 of its
+# header, after the 4 bytes of the table header
+srk_table_hash() {
+    _table="${1}"
+    _size=$(stat -L -c %s "${_table}")
+    _offset=4
+    while [ "${_offset}" -lt "${_size}" ]; do
+        _key_len=$((0x$(xxd -s $((_offset + 1)) -l 2 -p "${_table}")))
+        if [ "${_key_len}" -eq 0 ]; then
+            break
+        fi
+        dd if="${_table}" bs=1 skip="${_offset}" count="${_key_len}" status=none | sha256sum | cut -c1-64
+        _offset=$((_offset + _key_len))
+    done | tr -d '\n' | xxd -r -p | sha256sum | cut -c1-64
+}
+
 # Reads the source key SRK from a signed binary
 # This corresponds to the 0-3 slot index.
 extract_slot_index() {
@@ -76,6 +102,13 @@ extract_slot_index() {
             rm -rf "${_tmpdir}"
             fail "No output found from CSF parser"
         fi
+    fi
+    # The boot ROM refuses an imx-boot signed with other keys, and there is no
+    # rollback for it, so the keys have to be the ones the device trusts
+    if [ ! -e "./output/SRKTable.bin" ] || \
+            [ "$(srk_table_hash ./output/SRKTable.bin)" != "${FUSED_SRK_HASH}" ]; then
+        rm -rf "${_tmpdir}"
+        fail "$(basename ${_boot_artifact}) is not signed with the keys whose hash is fused in the device"
     fi
     info "$(basename ${_boot_artifact}) signed with index ${_slot_index}"
     rm -rf "${_tmpdir}"
