@@ -32,28 +32,78 @@ do_generate_resin_uboot_configuration[depends] += " \
 
 SRC_URI:append:mx8m-generic-bsp = " \
     file://security.cfg \
+    file://fit-fdt-signature.cfg \
     file://mach-imx-hab-allow-to-specify-custom-IVT-offset-from.patch \
     file://image-fdt-introduce-HAB-authentication-for-device-tr.patch \
     file://cmd-boot-panic-if-image-authentication-fails.patch \
     file://hab-set-hab-status-in-environment.patch \
+    file://spl-delay-before-panic-on-authentication-failure.patch \
+    file://spl-delay-before-panic-on-fit-fdt-authentication-failure.patch \
+    file://cmd-boot-delay-before-panic-on-authentication-failure.patch \
 "
 
 SRC_URI:append:iot-gate-imx8 = " \
+    file://spl-size.cfg \
     file://iot-gate-imx8-extend-the-load-address-for-FDT-files.patch \
     file://iot-gate-imx8-add-placeholder-for-IVT-offset-to-envi.patch \
     file://iot-gate-imx8-add-placeholder-for-DTB-IVT-offset-to-.patch \
 "
 
 SRC_URI:append:iot-gate-imx8plus = " \
+    file://spl-size.cfg \
     file://compulab-imx8m-plus-adjust-environment-for-secure-bo.patch \
     file://u-boot-compulab-iot-gate-imx8plus-configure-for-secu.patch \
-    file://mach-imx-dt_optee-bail-out-if-optee-nodes-exists.patch \
-    file://spl-delay-before-panic-on-authentication-failure.patch \
 "
 
 do_configure:prepend:mx8m-generic-bsp () {
     cat ${WORKDIR}/security.cfg >> ${S}/configs/${MACHINE}_defconfig
+    if [ "${HAB_FIT_FDT_SIGNATURE}" = "1" ]; then
+        cat ${WORKDIR}/fit-fdt-signature.cfg >> ${S}/configs/${MACHINE}_defconfig
+    fi
 }
+
+do_configure:prepend:iot-gate-imx8 () {
+    cat ${WORKDIR}/spl-size.cfg >> ${S}/configs/${MACHINE}_defconfig
+}
+
+do_configure:prepend:iot-gate-imx8plus () {
+    cat ${WORKDIR}/spl-size.cfg >> ${S}/configs/${MACHINE}_defconfig
+    # loadaddr, where the environment unpacks the kernel bundle, has to be the
+    # address it is signed for
+    echo "CONFIG_SYS_LOAD_ADDR=${HAB_KERNEL_LOAD_ADDR}" >> ${S}/configs/${MACHINE}_defconfig
+}
+
+# booti authenticates the kernel bundle and the device tree where the
+# environment loads them, check that they are the addresses they are signed for
+HAB_UBOOT_ENV_LOAD_ADDRS = ""
+HAB_UBOOT_ENV_LOAD_ADDRS:iot-gate-imx8plus = "loadaddr=HAB_KERNEL_LOAD_ADDR fdt_addr_r=HAB_DTB_LOAD_ADDR"
+
+python do_check_hab_load_addr () {
+    checks = [c.split('=', 1) for c in d.getVar('HAB_UBOOT_ENV_LOAD_ADDRS').split()]
+    if not checks:
+        return
+
+    for machine in d.getVar('UBOOT_MACHINE').split():
+        path = os.path.join(d.getVar('B'), machine, 'u-boot-initial-env')
+        env = {}
+        with open(path) as f:
+            for line in f:
+                if '=' in line:
+                    key, value = line.rstrip('\n').split('=', 1)
+                    env[key] = value.strip()
+        for name, var in checks:
+            signed = d.getVar(var)
+            if name not in env:
+                bb.fatal("%s is not in the U-Boot environment of %s, it has to load at %s %s"
+                         % (name, machine, var, signed))
+            # U-Boot reads addresses in the environment as hex, with or without 0x
+            if int(env[name], 16) != int(signed, 16):
+                bb.fatal("U-Boot %s loads at %s=%s, but it is signed for %s %s, HAB authentication would fail"
+                         % (machine, name, env[name], var, signed))
+            bb.note("U-Boot %s: %s=%s matches %s" % (machine, name, env[name], var))
+}
+do_check_hab_load_addr[vardeps] += "HAB_KERNEL_LOAD_ADDR HAB_DTB_LOAD_ADDR"
+addtask check_hab_load_addr after do_compile before do_install
 
 # For KERNEL_SIGN_IVT_OFFSET and DTB_SIGN_IVT_OFFSET
 do_generate_resin_uboot_configuration[depends] += " virtual/balena-bootloader:do_populate_sysroot"

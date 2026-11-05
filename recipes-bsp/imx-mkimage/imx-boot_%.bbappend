@@ -1,66 +1,72 @@
 inherit hab
 
 python __anonymous () {
+    # The image files are named imx-boot<variant>-<machine>-<config>.bin-<target>
+    # by the imx-boot recipe. BOOT_CONFIG_MACHINE holds the first part only when
+    # the BSP defines it, newer meta-imx releases do not and build the name
+    # inside the compile loop, so compose it from the variables used there
+    boot_config_machines = []
+    boot_config_machine = d.getVar('BOOT_CONFIG_MACHINE', True)
+    if boot_config_machine:
+        boot_config_machines.append(boot_config_machine)
+    else:
+        boot_variant = d.getVar('BOOT_VARIANT', True) or ""
+        machine = d.getVar('MACHINE', True)
+        for uboot_config in (d.getVar('UBOOT_CONFIG', True) or "").split():
+            boot_config_machines.append(f"imx-boot{boot_variant}-{machine}-{uboot_config}.bin")
     sign_artifact_names = []
-    boot_config_machine = "-".join([d.getVar('BOOT_NAME', True), d.getVar('MACHINE', True), d.getVar('UBOOT_CONFIG', True)]) + ".bin"
     imxboot_targets = d.getVar('IMXBOOT_TARGETS', True)
-    for target in imxboot_targets.split():
-        sign_artifact_names.append(f"{boot_config_machine}-{target}")
+    for boot_config_machine in boot_config_machines:
+        for target in imxboot_targets.split():
+            sign_artifact_names.append(f"{boot_config_machine}-{target}")
     d.setVar('SIGNING_ARTIFACTS', " ".join(sign_artifact_names))
 }
 
-do_compile:append() {
-    for target in flash_evk print_fit_hab; do
-        if [ ! -f "${BOOT_STAGING}/${UBOOT_DTB_NAME}" ]; then
-            cp ${DEPLOY_DIR_IMAGE}/${BOOT_TOOLS}/${UBOOT_DTB_NAME} ${BOOT_STAGING}
-        fi
-        bbnote "building ${IMX_BOOT_SOC_TARGET} - ${target}"
-        make SOC=${IMX_BOOT_SOC_TARGET} dtbs=${UBOOT_DTB_NAME} ${target} 2>&1 | tee ${target}.log
-        install "${B}/${target}.log" "${BOOT_STAGING}/"
-    done
-}
-
+# Layout of the signed imx-boot image
+#
+# It is written at the start of the eMMC boot0 partition. The offsets are the
+# ones mkimage prints in its log. imx_signer finds the IVTs in the image and
+# signs the blocks 1, 2 and 3 in this order, as block 3 covers the FIT CSF.
+# It writes each CSF where mkimage left room for it, which its IVT points to.
+#
+#                    Offset in the image         Loaded by, to       Blocks
+# +----------------+ 0x0                         Boot ROM, OCRAM     -
+# | IVT, boot data |                                                 |
+# | SPL            |                                                 1
+# | DDR firmware   |                                                 |
+# +----------------+ csf_off                                         -
+# | SPL CSF        |
+# +----------------+ sld_header_off              SPL, DDR            -  -
+# | FIT FDT        |                                                 |  |
+# +----------------+ sld_header_off + 0x1000                         2  |
+# | FIT IVT        |                                                 |  |
+# +----------------+ sld_csf_off                                     -  |
+# | FIT CSF        |                                                    3
+# +----------------+ fit-fdt csf_off - 0x20                             |
+# | FIT FDT IVT    |                                                    |
+# +----------------+ fit-fdt csf_off                                    -
+# | FIT FDT CSF    |
+# +----------------+ fit-fdt csf_off + 0x1fe0    SPL, DDR            -
+# | U-Boot, DTB    |                                                 |
+# +----------------+                             SPL, OCRAM          2
+# | ATF            |                                                 |
+# +----------------+                                                 -
+#
+# 1: SPL block, the IVT, boot data, SPL and DDR firmware. Signed by the SPL
+#    CSF, the boot ROM authenticates it.
+# 2: FIT block, the FIT FDT and IVT, U-Boot, its DTB and ATF. Signed by the FIT
+#    CSF, the SPL authenticates it once it has loaded the images.
+# 3: FIT FDT block, the FIT FDT, IVT and CSF and the FIT FDT IVT. Signed by
+#    the FIT FDT CSF, the SPL authenticates it before it reads the FIT
+#    (CONFIG_IMX_SPL_FIT_FDT_SIGNATURE).
 do_sign_hab() {
-    if [ ! -f "${BOOT_STAGING}/flash_evk.log" ] || [ ! -f "${BOOT_STAGING}/print_fit_hab.log" ]; then
-        bbfatal "mkimage output files not available in ${BOOT_STAGING} directory"
+    if [ -z "${SIGNING_ARTIFACTS}" ]; then
+        bbfatal "No artifacts to sign, check UBOOT_CONFIG, BOOT_VARIANT and IMXBOOT_TARGETS"
     fi
 
-    _payload=%%BIN_PATH%%
-    # Extract load address, offset and length from mkimage log file
-    eval $(awk  -F":" '(/hab block/)&&(gsub(/ /,"_",$1))&&($0=$1"=\""$2"\"")' ${BOOT_STAGING}/flash_evk.log)
-    # Append the image binary path
-    _spl_hab_block="${_spl_hab_block} \"${_payload}\""
-    _sld_hab_block="${_sld_hab_block} \"${_payload}\""
-
-    bbnote "_spl_hab_block=${_spl_hab_block} _sld_hab_block=${_sld_hab_block}"
-
-    # Extract load addresses, offsets and lengths from FIT log file
-    blocks=$(awk -v payload=${_payload} '(/^0x/)&&($0=","$0" \""payload"\" \\\n")' ORS=" " ${BOOT_STAGING}/print_fit_hab.log)
-
-    bbnote "blocks=${blocks}"
-
-    prepare_sign_csf
-
-    # Append blocks lines to template
-    cat ${WORKDIR}/csf > ${WORKDIR}/csf_fit
-    echo "$_sld_hab_block \ " >> ${WORKDIR}/csf_fit
-    echo "${blocks}" >> ${WORKDIR}/csf_fit
-
-    cat ${WORKDIR}/csf > ${WORKDIR}/csf_spl
-    echo "$_spl_hab_block" >> ${WORKDIR}/csf_spl
-
-    # Extract offsets from mkimage log file
-    eval $(awk '(/csf_off|sld_csf_off/)&&($0=$1"="$2)' ${BOOT_STAGING}/flash_evk.log)
-    bbnote "csf_off=${csf_off} sld_csf_off=${sld_csf_off}"
-
     for SIGNING_ARTIFACT in ${SIGNING_ARTIFACTS}; do
-        # Generate CSF binaries
-        cst ${S}/${SIGNING_ARTIFACT} ${WORKDIR}/csf_fit
-        cst ${S}/${SIGNING_ARTIFACT} ${WORKDIR}/csf_spl
-
-        # Append signature to image offsets to generate signed FIT image
-        dd if=${WORKDIR}/csf_spl.bin of=${S}/${SIGNING_ARTIFACT} seek=$(printf "%d" ${csf_off}) bs=1 conv=notrunc
-        dd if=${WORKDIR}/csf_fit.bin of=${S}/${SIGNING_ARTIFACT} seek=$(printf "%d" ${sld_csf_off}) bs=1 conv=notrunc
+        hab_imx_signer ${S}/${SIGNING_ARTIFACT}
+        mv ${HAB_SIGN_WORKDIR}/signed-$(basename ${SIGNING_ARTIFACT}) ${S}/${SIGNING_ARTIFACT}
     done
 }
 
@@ -127,6 +133,8 @@ do_efuses[depends] += " \
 "
 do_efuses[network] = "1"
 
+# See hab_imx_signer
+do_efuses[vardepsexclude] += "SIGN_API_KEY"
 do_efuses[vardeps] += " \
     SIGN_API \
     SIGN_HAB_PKI_ID \

@@ -1,0 +1,59 @@
+From: guille-vega <guillermo.vega@balena.io>
+Date: Sun, 1 Nov 2026 12:00:00 +0100
+Subject: [PATCH] cmd: boot: Delay before panic on authentication failure
+
+booti and the device tree loading panic right away when the kernel bundle or
+the device tree fail authentication. The board resets before the ethernet
+link comes up, so the bootloader integrity test of the OS suite never sees
+the device power up and times out.
+
+Delay before panic, as it is done in the SPL.
+
+Signed-off-by: guille-vega <guillermo.vega@balena.io>
+---
+ boot/image-fdt.c | 4 ++++
+ cmd/booti.c      | 4 ++++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/boot/image-fdt.c b/boot/image-fdt.c
+--- a/boot/image-fdt.c
++++ b/boot/image-fdt.c
+@@ -19,6 +19,7 @@
+ #include <malloc.h>
+ #include <asm/global_data.h>
+ #include <linux/libfdt.h>
++#include <linux/delay.h>
+ #include <mapmem.h>
+ #include <asm/io.h>
+ #include <dm/ofnode.h>
+@@ -574,6 +575,9 @@
+ #if defined(CONFIG_IMX_HAB)
+ 	extern int authenticate_dtb(uint32_t ddr_start, uint32_t raw_image_size);
+ 	if (authenticate_dtb((uintptr_t)fdt_blob, *of_size) != 0) {
++		/* Give time for ethernet to come up before panic */
++		/* to signal device has booted and use it in tests  */
++		mdelay(3000);
+ 		panic("Authenticate dtb failure, bailing out\n");
+ 	} else {
+ 		printf("DTB authentication passed\n");
+diff --git a/cmd/booti.c b/cmd/booti.c
+--- a/cmd/booti.c
++++ b/cmd/booti.c
+@@ -14,6 +14,7 @@
+ #include <mapmem.h>
+ #include <asm/global_data.h>
+ #include <linux/kernel.h>
++#include <linux/delay.h>
+ #include <linux/sizes.h>
+ 
+ #ifdef CONFIG_IMX_MATTER_TRUSTY
+@@ -86,6 +87,9 @@
+ 	extern int authenticate_image(
+ 		uint32_t ddr_start, uint32_t raw_image_size);
+ 	if (authenticate_image(ld, image_size) != 0) {
++		/* Give time for ethernet to come up before panic */
++		/* to signal device has booted and use it in tests  */
++		mdelay(3000);
+ 		panic("Authenticate Image Fail, bailing out\n");
+ 	} else {
+ 		printf("Authenticate image passed\n");
