@@ -39,6 +39,7 @@ SRC_URI:append:mx8m-generic-bsp = " \
     file://image-fdt-introduce-HAB-authentication-for-device-tr.patch \
     file://spl-delay-before-panic-on-authentication-failure.patch \
 "
+SRC_URI:append:mx8m-generic-bsp = "${@' file://fit-fdt-signature.cfg file://spl-delay-before-panic-on-fit-fdt-authentication-failure.patch' if d.getVar('HAB_FIT_FDT_SIGNATURE') == '1' else ''}"
 
 # Since 2026.04 U-Boot finds an existing optee node itself, and the board
 # environment is in a text file that hab_variscite_env adjusts instead
