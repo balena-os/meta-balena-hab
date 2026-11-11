@@ -6,6 +6,8 @@ This allows to program the SRK e-fuses and check hab status before
 closing the device.
 
 Signed-off-by: Alex Gonzalez <alexg@balena.io>
+
+Upstream-Status: Pending
 ---
  imx-otp-tool.c | 31 ++++++++++++++++++++++++++-----
  1 file changed, 26 insertions(+), 5 deletions(-)

@@ -11,6 +11,8 @@ i.MX8MP. Bank and word for each fuse can be obtained from the
 corresponding reference manuals.
 
 Signed-off-by: Alex Gonzalez <alexg@balena.io>
+
+Upstream-Status: Pending
 ---
  CMakeLists.txt    | 11 +++++++++++
  imx-otp-tool.c    |  2 ++

@@ -5,6 +5,8 @@ Subject: [PATCH] hab: set hab status in environment
 This allows to pass the status to user space and helps when provisioning.
 
 Signed-off-by: Alex Gonzalez <alexg@balena.io>
+
+Upstream-Status: Pending
 ---
  arch/arm/mach-imx/hab.c | 2 ++
  1 file changed, 2 insertions(+)

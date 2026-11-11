@@ -3,6 +3,8 @@ Date: Thu, 5 Dec 2024 19:41:59 +0100
 Subject: [PATCH] imx-otp-tool: add JTAG disabling to secure mode
 
 Signed-off-by: Alex Gonzalez <alexg@balena.io>
+
+Upstream-Status: Pending
 ---
  imx-otp-tool.c    | 132 ++++++++++++++++++++++++++++++++++++++++------
  otp/otp_bootcfg.c |  52 ++++++++++++++++++

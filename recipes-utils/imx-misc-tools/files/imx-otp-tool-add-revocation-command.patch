@@ -4,6 +4,8 @@ Subject: [PATCH] imx-otp-tool: add revocation command
 
 Change-type: patch
 Signed-off-by: Alex Gonzalez <alexg@balena.io>
+
+Upstream-Status: Pending
 ---
  imx-otp-tool.c | 41 ++++++++++++++++++++++++++++++++++-
  otp/otp_srk.c  | 58 ++++++++++++++++++++++++++++++++++++++++++++++++++
