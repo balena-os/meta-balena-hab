@@ -1,0 +1,42 @@
+From: Alex Gonzalez <alexg@balena.io>
+Date: Thu, 15 Aug 2024 16:10:34 +0200
+Subject: [PATCH] mach-imx: hab: allow to specify custom IVT offset from
+ environment
+
+This allows to boot a signed Linux kernel with an initramfs bundle, and
+not only a signed Image file where the offset is automatically detected
+from the headers.
+
+Include env.h, which U-Boot no longer includes implicitly since it removed
+common.h.
+
+Signed-off-by: Alex Gonzalez <alexg@balena.io>
+
+Upstream-Status: Pending
+---
+ arch/arm/mach-imx/hab.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm/mach-imx/hab.c b/arch/arm/mach-imx/hab.c
+index ab586157..fe2d9f2d 100644
+--- a/arch/arm/mach-imx/hab.c
++++ b/arch/arm/mach-imx/hab.c
+@@ -6,6 +6,7 @@
+ #include <command.h>
+ #include <config.h>
+ #include <display_options.h>
++#include <env.h>
+ #include <fuse.h>
+ #include <mapmem.h>
+ #include <image.h>
+@@ -1026,7 +1027,9 @@ int authenticate_image(u32 ddr_start, u32 raw_image_size)
+ 	u32 ivt_offset;
+ 	size_t bytes;
+ 
+-	ivt_offset = (raw_image_size + ALIGN_SIZE - 1) &
++	ivt_offset = env_get_hex("ivt_offset", 0);
++	if ( !ivt_offset )
++		ivt_offset = (raw_image_size + ALIGN_SIZE - 1) &
+ 					~(ALIGN_SIZE - 1);
+ 	bytes = ivt_offset + IVT_SIZE + CSF_PAD_SIZE;
+ 
