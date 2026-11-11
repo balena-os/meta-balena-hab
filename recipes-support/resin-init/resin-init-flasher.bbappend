@@ -13,11 +13,11 @@ BALENA_SKIP_SECUREBOOT_SETUP = "${@bb.utils.contains('DISTRO_FEATURES', 'osdev-i
 do_install:append() {
 	if [ "x${SIGN_API}" != "x" ]; then
 		install -d ${D}${libexecdir}
-		install -m 0755 ${WORKDIR}/balena-init-flasher-imx-secureboot ${D}${libexecdir}/balena-init-flasher-secureboot
+		install -m 0755 ${UNPACKDIR}/balena-init-flasher-imx-secureboot ${D}${libexecdir}/balena-init-flasher-secureboot
 		sed -i -e "s,@@BALENA_FINGERPRINT_FILENAME@@,${BALENA_FINGERPRINT_FILENAME},g" ${D}${libexecdir}/balena-init-flasher-secureboot
 		sed -i -e "s,@@BALENA_NONENC_BOOT_LABEL@@,${BALENA_NONENC_BOOT_LABEL},g" ${D}${libexecdir}/balena-init-flasher-secureboot
 		sed -i -e "s,@@BALENA_FINGERPRINT_EXT@@,${BALENA_FINGERPRINT_EXT},g" ${D}${libexecdir}/balena-init-flasher-secureboot
-		install -m 0755 ${WORKDIR}/balena-init-flasher-imx-diskenc ${D}${libexecdir}/balena-init-flasher-diskenc
+		install -m 0755 ${UNPACKDIR}/balena-init-flasher-imx-diskenc ${D}${libexecdir}/balena-init-flasher-diskenc
 		echo "USE_LUKS=${BALENA_USE_LUKS}" >> ${D}/${sysconfdir}/resin-init-flasher.conf
 		if [ "${SKIP_SECUREBOOT_SETUP}" != "0" ]; then
 			bbwarn "SKIP_SECUREBOOT_SETUP is set - do not use in production"

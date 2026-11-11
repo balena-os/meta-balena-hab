@@ -4,7 +4,8 @@ SRC_URI += " \
     file://os-helpers-sb \
 "
 
-RDEPENDS:${PN}-sb:prepend = "imx-misc-tools "
+# imx-misc-tools only has a target recipe, and os-helpers is also built native
+RDEPENDS:${PN}-sb:prepend:class-target = "imx-misc-tools "
 
 # For development use only - bypasses lock check
 IS_SECURED_CHECK_SKIP ?= "0"
@@ -16,7 +17,7 @@ BOOTLOADER_IMAGE ?= "imx-boot-${MACHINE}-sd.bin-flash_evk"
 BOOTLOADER_IMAGE:imx8mp-var-dart-pl1000pp = "imx-boot.bin"
 
 do_install:append() {
-	install -m 0775 ${WORKDIR}/os-helpers-sb ${D}${libexecdir}
+	install -m 0775 ${UNPACKDIR}/os-helpers-sb ${D}${libexecdir}
 	sed -i -e "s,@@KERNEL_IMAGETYPE@@,${KERNEL_IMAGETYPE},g" ${D}${libexecdir}/os-helpers-sb
 	sed -i -e "s,@@BALENA_IMAGE_FLAG_FILE@@,${BALENA_IMAGE_FLAG_FILE},g" ${D}${libexecdir}/os-helpers-sb
 	sed -i -e "s,@@KERNEL_DEVICE_TREES@@,${KERNEL_DEVICE_TREES},g" ${D}${libexecdir}/os-helpers-sb

@@ -6,9 +6,8 @@ LIC_FILES_CHKSUM = " \
     file://LICENSE.hidapi;md5=e0ea014f523f64f0adb13409055ee59e \
     file://LICENSE.openssl;md5=3441526b1df5cc01d812c7dfc218cea6 \
 "
-SRC_URI = "git://git@github.com/balena-os/cst.git;protocol=ssh;branch=master"
+SRC_URI = "git://git@github.com/balena-os/cst.git;protocol=ssh;branch=master;destsuffix=${BP}"
 SRCREV = "b511d26d7f1f9323bc21485523b259ad9d437442"
-S = "${WORKDIR}/git"
 
 do_untar() {
     tar --strip-component=1 -C ${S} -xvf ${S}/cst-${PV}.tgz

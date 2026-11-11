@@ -7,7 +7,7 @@ SRC_URI:append = " \
 do_install:append() {
 	install -d ${D}/init.d
 
-	install -m 0755 ${WORKDIR}/cryptsetup-imx ${D}/init.d/72-cryptsetup
+	install -m 0755 ${UNPACKDIR}/cryptsetup-imx ${D}/init.d/72-cryptsetup
 }
 
 RDEPENDS:initramfs-module-cryptsetup:append = " libdevmapper keyutils keyctl-caam"

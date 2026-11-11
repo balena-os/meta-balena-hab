@@ -56,18 +56,18 @@ SRC_URI:append:iot-gate-imx8plus = " \
 "
 
 do_configure:prepend:mx8m-generic-bsp () {
-    cat ${WORKDIR}/security.cfg >> ${S}/configs/${MACHINE}_defconfig
+    cat ${UNPACKDIR}/security.cfg >> ${S}/configs/${MACHINE}_defconfig
     if [ "${HAB_FIT_FDT_SIGNATURE}" = "1" ]; then
-        cat ${WORKDIR}/fit-fdt-signature.cfg >> ${S}/configs/${MACHINE}_defconfig
+        cat ${UNPACKDIR}/fit-fdt-signature.cfg >> ${S}/configs/${MACHINE}_defconfig
     fi
 }
 
 do_configure:prepend:iot-gate-imx8 () {
-    cat ${WORKDIR}/spl-size.cfg >> ${S}/configs/${MACHINE}_defconfig
+    cat ${UNPACKDIR}/spl-size.cfg >> ${S}/configs/${MACHINE}_defconfig
 }
 
 do_configure:prepend:iot-gate-imx8plus () {
-    cat ${WORKDIR}/spl-size.cfg >> ${S}/configs/${MACHINE}_defconfig
+    cat ${UNPACKDIR}/spl-size.cfg >> ${S}/configs/${MACHINE}_defconfig
     # loadaddr, where the environment unpacks the kernel bundle, has to be the
     # address it is signed for
     echo "CONFIG_SYS_LOAD_ADDR=${HAB_KERNEL_LOAD_ADDR}" >> ${S}/configs/${MACHINE}_defconfig
