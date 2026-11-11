@@ -77,12 +77,6 @@ do_configure:prepend:imx8mp-var-dart-pl1000pp() {
     fi
 }
 
-do_configure:prepend:mx8m-generic-bsp () {
-    for machine in ${UBOOT_MACHINE}; do
-        cat ${UNPACKDIR}/security.cfg >> ${S}/configs/${machine}_defconfig
-    done
-}
-
 # For KERNEL_SIGN_IVT_OFFSET and DTB_SIGN_IVT_OFFSET
 do_generate_resin_uboot_configuration[depends] += " virtual/balena-bootloader:do_populate_sysroot"
 
