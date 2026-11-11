@@ -20,9 +20,15 @@ python do_sign_dtb() {
         shutil.copyfile(os.path.join(dtb_path, dtb), signed_dtb)
         signing_artifacts = signing_artifacts + " " + signed_dtb
     d.setVar('SIGNING_ARTIFACTS', signing_artifacts)
+    # Drop the offsets of the previous signing, but keep the kernel bundle one,
+    # as do_sign_kernel_bundle does not always run again with this task
     hab_auth_path = os.path.join(d.getVar('STAGING_DIR_HOST'), 'hab_auth')
     if os.path.exists(hab_auth_path):
-        os.remove(hab_auth_path)
+        names = tuple(os.path.basename(dtb) + '_IVT_OFFSET=' for dtb in kernel_devicetrees.split())
+        with open(hab_auth_path) as f:
+            lines = [l for l in f if not l.startswith(names)]
+        with open(hab_auth_path, 'w') as f:
+            f.writelines(lines)
     # Load address in memory
     d.setVar('HAB_LOAD_ADDR', d.getVar('HAB_DTB_LOAD_ADDR'))
     bb.build.exec_func('do_sign', d)
@@ -32,6 +38,15 @@ do_sign_dtb[cleandirs] = "${HAB_SIGNED_DTB_DIR}"
 python do_sign_kernel_bundle() {
     import shutil
     bundle = '.'.join([d.getVar('KERNEL_IMAGETYPE', True), 'initramfs'])
+    # do_hab_ivt appends to hab_auth, and this task can run again without
+    # do_sign_dtb, which empties it. Drop the offset of the previous signing,
+    # so that U-Boot only finds the current one
+    hab_auth_path = os.path.join(d.getVar('STAGING_DIR_HOST'), 'hab_auth')
+    if os.path.exists(hab_auth_path):
+        with open(hab_auth_path) as f:
+            lines = [l for l in f if not l.startswith(bundle + '_IVT_OFFSET=')]
+        with open(hab_auth_path, 'w') as f:
+            f.writelines(lines)
     signing_artifacts = os.path.join(d.getVar('HAB_SIGNED_KERNEL_DIR'), bundle)
     shutil.copyfile(os.path.join(d.getVar('B', True), d.getVar('KERNEL_OUTPUT_DIR', True), bundle),
                     signing_artifacts)
