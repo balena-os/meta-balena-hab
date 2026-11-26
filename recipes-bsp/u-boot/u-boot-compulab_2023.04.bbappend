@@ -32,6 +32,7 @@ do_generate_resin_uboot_configuration[depends] += " \
 
 SRC_URI:append:mx8m-generic-bsp = " \
     file://security.cfg \
+    file://spl-size.cfg \
     file://mach-imx-hab-allow-to-specify-custom-IVT-offset-from.patch \
     file://image-fdt-introduce-HAB-authentication-for-device-tr.patch \
     file://cmd-boot-panic-if-image-authentication-fails.patch \
@@ -52,6 +53,7 @@ SRC_URI:append:iot-gate-imx8plus = " \
 
 do_configure:prepend:mx8m-generic-bsp () {
     cat ${WORKDIR}/security.cfg >> ${S}/configs/${MACHINE}_defconfig
+    cat ${WORKDIR}/spl-size.cfg >> ${S}/configs/${MACHINE}_defconfig
 }
 
 # For KERNEL_SIGN_IVT_OFFSET and DTB_SIGN_IVT_OFFSET
