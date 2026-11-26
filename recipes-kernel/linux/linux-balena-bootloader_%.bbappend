@@ -13,7 +13,7 @@ python do_sign_dtb() {
     if os.path.exists(hab_auth_path):
         os.remove(hab_auth_path)
     # Load address in memory
-    d.setVar('HAB_LOAD_ADDR', "0x48480000")
+    d.setVar('HAB_LOAD_ADDR', d.getVar('HAB_DTB_LOAD_ADDR'))
     bb.build.exec_func('do_sign', d)
 }
 
@@ -24,7 +24,7 @@ python do_sign_kernel_bundle() {
                                                'initramfs']))
     d.setVar('SIGNING_ARTIFACTS', signing_artifacts)
     # Load address in memory
-    d.setVar('HAB_LOAD_ADDR', "0x40480000")
+    d.setVar('HAB_LOAD_ADDR', d.getVar('HAB_KERNEL_LOAD_ADDR'))
     bb.build.exec_func('do_sign', d)
 }
 

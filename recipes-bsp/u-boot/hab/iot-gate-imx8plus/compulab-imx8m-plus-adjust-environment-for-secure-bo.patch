@@ -8,9 +8,12 @@ The current difference between the kernel load address and the FDT load
 address is roughly 75M, which limits the size of the usable initramfs
 when bundled with the kernel.
 
+* Load the device tree at HAB_DTB_LOAD_ADDR, the address it is signed for
+
 * Add placeholders for both kernel and device tree IVT offsets
 
 Signed-off-by: Alex Gonzalez <alexg@balena.io>
+Signed-off-by: guille-vega <guillermo.vega@balena.io>
 ---
  include/configs/compulab-imx8m-plus.h | 10 ++++++----
  1 file changed, 6 insertions(+), 4 deletions(-)
@@ -26,9 +29,9 @@ diff --git a/include/configs/compulab-imx8m-plus.h b/include/configs/compulab-im
 -	"fdto_addr_r=0x45800000\0"			\
 -	"fdt_addr=0x45000000\0"			\
 -	"zip_addr=0x48440000\0" \
-+	"fdt_addr_r=0x48480000\0"			\
++	"fdt_addr_r="__stringify(HAB_DTB_LOAD_ADDR)"\0"			\
 +	"fdto_addr_r=0x49480000\0"			\
-+	"fdt_addr=0x48480000\0"			\
++	"fdt_addr="__stringify(HAB_DTB_LOAD_ADDR)"\0"			\
 +	"zip_addr=70000000\0" \
  	"boot_fdt=try\0" \
  	"fdt_high=0xffffffffffffffff\0"		\
