@@ -28,3 +28,7 @@ do_install:append() {
 }
 
 RDEPENDS:${PN}:append = "${@oe.utils.conditional('SIGN_API','','',' os-helpers-sb gnupg',d)}"
+
+# balena-init-flasher-diskenc creates the disk encryption key with caam-keygen
+# (keyctl-caam) and loads it with keyctl (keyutils)
+RDEPENDS:${PN}:append = " keyctl-caam keyutils"
