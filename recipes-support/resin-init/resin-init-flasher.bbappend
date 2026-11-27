@@ -28,3 +28,15 @@ do_install:append() {
 }
 
 RDEPENDS:${PN}:append = "${@oe.utils.conditional('SIGN_API','','',' os-helpers-sb gnupg',d)}"
+
+# balena-init-flasher-diskenc creates the disk encryption key with caam-keygen
+# (keyctl-caam) and loads it with keyctl (keyutils)
+RDEPENDS:${PN}:append = " keyctl-caam keyutils"
+
+# A systemd service gets a session keyring that is not linked to the user
+# keyring. Link it, so that dmsetup finds the key that
+# balena-init-flasher-diskenc adds to the user keyring (@u).
+do_install:append() {
+	install -d ${D}${sysconfdir}/systemd/system/resin-init-flasher.service.d
+	printf '[Service]\nKeyringMode=shared\n' > ${D}${sysconfdir}/systemd/system/resin-init-flasher.service.d/keyring.conf
+}

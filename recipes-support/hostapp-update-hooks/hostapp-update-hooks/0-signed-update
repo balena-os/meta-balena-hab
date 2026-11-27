@@ -45,15 +45,54 @@ if ! is_secured; then
     exit 0
 fi
 
+# The SRK hash fused in the device, the 8 words of banks 6 and 7 of the OCOTP.
+# Its nvmem only reads whole 4 byte words
+OCOTP_NVMEM="/sys/bus/nvmem/devices/imx-ocotp0/nvmem"
+SRK_FUSE_WORD=24
+FUSED_SRK_HASH=$(dd if="${OCOTP_NVMEM}" bs=4 skip=${SRK_FUSE_WORD} count=8 status=none | xxd -p -c 32)
+if [ "${#FUSED_SRK_HASH}" -ne 64 ]; then
+    fail "Cannot read the SRK hash fuses from ${OCOTP_NVMEM}"
+fi
+# Open devices with no SRK hash fused, as development images with
+# IS_SECURED_CHECK_SKIP update, boot artifacts signed with any keys. A closed
+# device always has it fused
+if [ -z "$(echo "${FUSED_SRK_HASH}" | tr -d 0)" ]; then
+    _secured=0
+    imx-otp-tool -q is-secured || _secured=$?
+    if [ "${_secured}" -ne 1 ]; then
+        fail "No SRK hash fused in a device that is not open"
+    fi
+    warn "No SRK hash fused - not checking the keys the boot artifacts are signed with"
+    FUSED_SRK_HASH=""
+fi
+
+# Hash of an SRK table as HAB checks it against the fuses, the SHA-256 of the
+# SHA-256 of each key in it. Each key has its length in bytes 1 and 2 of its
+# header, after the 4 bytes of the table header
+srk_table_hash() {
+    _table="${1}"
+    _size=$(stat -L -c %s "${_table}")
+    _offset=4
+    while [ "${_offset}" -lt "${_size}" ]; do
+        _key_len=$((0x$(xxd -s $((_offset + 1)) -l 2 -p "${_table}")))
+        if [ "${_key_len}" -eq 0 ]; then
+            break
+        fi
+        dd if="${_table}" bs=1 skip="${_offset}" count="${_key_len}" status=none | sha256sum | cut -c1-64
+        _offset=$((_offset + _key_len))
+    done | tr -d '\n' | xxd -r -p | sha256sum | cut -c1-64
+}
+
 # Reads the source key SRK from a signed binary
 # This corresponds to the 0-3 slot index.
-extract_slot_index() {
+# It runs in a subshell, which removes its temporary directory on exit
+extract_slot_index() (
     _boot_artifact="${1}"
     _tmpdir=$(mktemp -d)
+    trap 'rm -rf "${_tmpdir}"' EXIT
 
     cd "${_tmpdir}"
     if ! command -v csf_parser > /dev/null; then
-        rm -rf "${_tmpdir}"
         fail "CSF parser not found"
     fi
 
@@ -64,23 +103,24 @@ extract_slot_index() {
         gunzip -c "${_boot_artifact}" > "${_n_artifact}"
         _boot_artifact="${_n_artifact}"
     fi
-    # Currently the u-boot fit image fails parsing with an unrecognized tag so
-    # we rely on the existence of the parsed output to confirm signing.
-    if ! "$(command -v csf_parser)" -s "${_boot_artifact}" > /dev/null && [ "${_boot_artifact}" != "${_boot_artifact#imx-boot*}" ]; then
-        rm -rf "${_tmpdir}"
+    # csf_parser parses the CSF of the first IVT, and writes its SRK table. It
+    # keeps reading up to the end of the file, so it fails with an unrecognized
+    # tag on the padding after the CSF. Rely on the files it writes and not on
+    # its exit code
+    "$(command -v csf_parser)" -s "${_boot_artifact}" > /dev/null || true
+    if [ ! -e "./output/parsed_output.txt" ]; then
         fail "No signature found in ${_boot_artifact}"
-    else
-        if [ -e "./output/parsed_output.txt" ]; then
-            _slot_index="$(grep "Source Key Index of SRK" "./output/parsed_output.txt" | awk '{print $4}')"
-        else
-            rm -rf "${_tmpdir}"
-            fail "No output found from CSF parser"
-        fi
+    fi
+    _slot_index="$(grep "Source Key Index of SRK" "./output/parsed_output.txt" | awk '{print $4}')"
+    # The boot ROM refuses an imx-boot signed with other keys, and there is no
+    # rollback for it, so the keys have to be the ones the device trusts
+    if [ -n "${FUSED_SRK_HASH}" ] && { [ ! -e "./output/SRKTable.bin" ] || \
+            [ "$(srk_table_hash ./output/SRKTable.bin)" != "${FUSED_SRK_HASH}" ]; }; then
+        fail "$(basename ${_boot_artifact}) is not signed with the keys whose hash is fused in the device"
     fi
     info "$(basename ${_boot_artifact}) signed with index ${_slot_index}"
-    rm -rf "${_tmpdir}"
     echo "${_slot_index}"
-}
+)
 
 # Check that the new OS artifacts are signed with the same key
 BOOT_ARTIFACTS=$(find /mnt/sysroot/inactive -type f -path "*/resin-boot/*dtb" -o -path "*/resin-boot/imx-boot*" -o -path "*/resin-boot/Image.gz")
